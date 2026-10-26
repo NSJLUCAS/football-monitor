@@ -1,0 +1,14 @@
+node_modules
+dist
+release
+.research
+.superpowers
+**/.superpowers/**
+test-results
+playwright-report
+coverage
+package-lock.json
+docs/screenshots
+docs/dependency-licenses.json
+docs/development/package-verification.json
+THIRD_PARTY_NOTICES.md

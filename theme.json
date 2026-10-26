@@ -1,0 +1,85 @@
+{
+  "name": "Football Monitor",
+  "short": "football-monitor",
+  "description": "原创足球球星卡极简探针主题 · 你的服务器，你的主场",
+  "version": "1.0.0",
+  "author": "Football Monitor contributors",
+  "url": "https://github.com/NSJLUCAS/football-monitor",
+  "config": [
+    { "type": "title", "label": "球星卡与外观" },
+    {
+      "key": "default_template",
+      "type": "select",
+      "label": "默认卡面",
+      "default": "auto",
+      "options": [
+        { "value": "auto", "label": "自动（按评分）" },
+        { "value": "gold", "label": "金卡" },
+        { "value": "silver", "label": "银卡" },
+        { "value": "bronze", "label": "铜卡" },
+        { "value": "weekly-black", "label": "周黑" },
+        { "value": "pioneer", "label": "开拓者" },
+        { "value": "legend", "label": "传奇" }
+      ]
+    },
+    {
+      "key": "layout",
+      "type": "select",
+      "label": "卡片布局",
+      "default": "comfortable",
+      "options": [
+        { "value": "comfortable", "label": "标准（每行 7 张）" },
+        { "value": "compact", "label": "紧凑（每行 8 张）" }
+      ]
+    },
+    {
+      "key": "card_size",
+      "type": "select",
+      "label": "卡片尺寸",
+      "default": "standard",
+      "options": [
+        { "value": "standard", "label": "标准" },
+        { "value": "large", "label": "大卡（每行 6 张）" }
+      ]
+    },
+    {
+      "key": "appearance",
+      "type": "select",
+      "label": "外观",
+      "default": "dark",
+      "options": [
+        { "value": "dark", "label": "深色" },
+        { "value": "light", "label": "浅色" },
+        { "value": "system", "label": "跟随系统" }
+      ]
+    },
+    { "key": "motion", "type": "boolean", "label": "启用轻量动效", "default": true },
+    { "type": "title", "label": "信息显示" },
+    { "key": "show_summary", "type": "boolean", "label": "显示汇总", "default": true },
+    { "key": "show_traffic", "type": "boolean", "label": "显示流量", "default": true },
+    { "key": "show_billing", "type": "boolean", "label": "显示费用", "default": true },
+    { "key": "show_carriers", "type": "boolean", "label": "显示三网", "default": true },
+    {
+      "key": "exchange_rates",
+      "type": "string",
+      "label": "汇率（折合人民币）",
+      "default": "USD=7.10,EUR=7.80,GBP=9.20,JPY=0.047,HKD=0.91,SGD=5.40,AUD=4.60,CAD=5.10,KRW=0.0051,TWD=0.22",
+      "help": "1 单位外币折合多少人民币，格式 币种=汇率，逗号分隔；用于首页剩余价值合计。"
+    },
+    { "type": "title", "label": "节点与可选上传" },
+    {
+      "key": "node_config",
+      "type": "text",
+      "label": "节点配置 JSON",
+      "default": "{\"version\":1,\"nodes\":{}}",
+      "help": "推荐使用主题内可视化设置。公开配置，禁止保存秘密。"
+    },
+    {
+      "key": "upload_endpoint",
+      "type": "string",
+      "label": "可选图片上传地址",
+      "default": "",
+      "help": "独立 Access 保护 Worker 的 HTTPS /upload 地址，不填则使用 URL 与本地导出。"
+    }
+  ]
+}

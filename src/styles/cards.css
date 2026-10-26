@@ -1,0 +1,467 @@
+/* FC-layout player card and the live strip under it. */
+:root {
+  --strip-down: #15803d;
+  --strip-up: #2563eb;
+  --strip-empty-seg: #dde0e7;
+}
+:root.dark {
+  --strip-down: #4ade80;
+  --strip-up: #60a5fa;
+  --strip-empty-seg: #2f3440;
+}
+
+.live-card {
+  min-width: 0;
+}
+.live-card-link {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-radius: 10px;
+  color: inherit;
+}
+.live-card-link:focus-visible {
+  outline-offset: 3px;
+}
+
+/* Card face: skin image -> portrait -> text layer, all in percentages of the 640x860 canvas. */
+.player-card {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  aspect-ratio: 640 / 860;
+  container-type: inline-size;
+  isolation: isolate;
+  color: var(--ink);
+  text-shadow: var(--ink-shadow);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  transition: transform 0.2s ease;
+}
+.pc-face {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  user-select: none;
+}
+.pc-art {
+  /* Portrait may extend past its reference frame; every edge of the art area fades out softly. */
+  --fade-y: 7%;
+  --fade-x: 6%;
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  mask-image:
+    linear-gradient(
+      to bottom,
+      transparent var(--art-top),
+      #000 calc(var(--art-top) + var(--fade-y)),
+      #000 calc(var(--name-top) - var(--fade-y)),
+      transparent var(--name-top)
+    ),
+    linear-gradient(
+      to right,
+      transparent var(--inset),
+      #000 calc(var(--inset) + var(--fade-x)),
+      #000 calc(100% - var(--inset) - var(--fade-x)),
+      transparent calc(100% - var(--inset))
+    );
+  mask-composite: intersect;
+}
+.pc-portrait {
+  position: absolute;
+  top: var(--portrait-top);
+  left: var(--portrait-left);
+  width: var(--portrait-width);
+  height: var(--portrait-height);
+}
+.pc-portrait .portrait-layer {
+  position: absolute;
+  inset: 0;
+}
+.pc-portrait .portrait-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.card-offline .pc-face,
+.card-offline .pc-art {
+  filter: grayscale(1) brightness(0.7);
+}
+.pc-text {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+}
+
+.pc-meta {
+  position: absolute;
+  top: var(--rating-top);
+  left: var(--inset);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.4cqw;
+  min-width: 19cqw;
+}
+.pc-rating {
+  font-size: 17cqw;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 0.9;
+}
+.card-offline .pc-rating {
+  font-size: 11cqw;
+  letter-spacing: 0;
+  line-height: 1.3;
+}
+.pc-position {
+  font-size: 6.4cqw;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+.pc-skills {
+  /* Line “skills” sit on the card's left rim just above the name, like FC playstyle icons. */
+  position: absolute;
+  left: calc(var(--inset) - 8%);
+  bottom: calc(100% - var(--name-top) + 2%);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1.2cqw;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.pc-skill {
+  /* FC playstyle palette: dark badge with gold rim on dark faces, metallic badge on light faces. */
+  --skill-fill: linear-gradient(160deg, #f9e9ad, #d8b153 55%, #c39a3a);
+  --skill-rim: linear-gradient(160deg, #8a6420, #4d360b);
+  --skill-ink: #2b1d05;
+  display: flex;
+  align-items: center;
+  gap: 1.1cqw;
+  max-width: 26cqw;
+  padding: 0.7cqw 1.8cqw 0.7cqw 1.3cqw;
+  overflow: hidden;
+  border: 0.4cqw solid transparent;
+  border-radius: 1.4cqw;
+  background:
+    var(--skill-fill) padding-box,
+    var(--skill-rim) border-box;
+  color: var(--skill-ink);
+  box-shadow: 0 0.5cqw 1.4cqw rgb(0 0 0 / 0.35);
+  font-size: 4cqw;
+  font-weight: 800;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  text-shadow: none;
+  white-space: nowrap;
+}
+.player-card[data-skin='weekly-black'] .pc-skill {
+  --skill-fill: linear-gradient(160deg, #2c2619, #0b0a07 70%);
+  --skill-rim: linear-gradient(160deg, #f7dc8a, #b3842c 55%, #f0cc6c);
+  --skill-ink: #f3cf6b;
+}
+.player-card[data-skin='pioneer'] .pc-skill {
+  --skill-fill: linear-gradient(160deg, #8a4fd0, #5a2a96 55%, #3a1468);
+  --skill-rim: linear-gradient(160deg, #ffffff, #d9c8f6 55%, #f4eefc);
+  --skill-ink: #ffffff;
+}
+.player-card[data-skin='legend'] .pc-skill {
+  --skill-fill: linear-gradient(160deg, #ffffff, #f6f1e4 55%, #e7dcc2);
+  --skill-rim: linear-gradient(160deg, #f1d27a, #b8892f 55%, #e2bd5e);
+  --skill-ink: #7a5514;
+}
+.player-card[data-skin='silver'] .pc-skill {
+  --skill-fill: linear-gradient(160deg, #ffffff, #d3d8df 55%, #b3bbc6);
+  --skill-rim: linear-gradient(160deg, #6d7682, #39404a);
+  --skill-ink: #1f2630;
+}
+.player-card[data-skin='bronze'] .pc-skill {
+  --skill-fill: linear-gradient(160deg, #f6d2b0, #c98a5a 55%, #a8683d);
+  --skill-rim: linear-gradient(160deg, #6e3f1d, #3b200b);
+  --skill-ink: #2a1408;
+}
+.pc-skill::before {
+  /* Carrier hint kept small so the badge keeps the card's metallic palette. */
+  content: '';
+  flex: none;
+  width: 1.6cqw;
+  height: 1.6cqw;
+  border-radius: 50%;
+  background: var(--carrier);
+  box-shadow: 0 0 0 0.35cqw rgb(0 0 0 / 0.25);
+}
+
+.pc-chips {
+  position: absolute;
+  top: var(--rating-top);
+  right: var(--inset);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1.2cqw;
+  max-width: 36cqw;
+}
+.pc-offline-tag {
+  font-size: 3.6cqw;
+  font-weight: 700;
+  line-height: 1.2;
+  padding: 0.8cqw 1.8cqw;
+  border-radius: 1.2cqw;
+  background: var(--chip-bg);
+  color: var(--chip-fg);
+  text-shadow: none;
+  white-space: nowrap;
+}
+.pc-offline-tag {
+  background: #3a3d45;
+  color: #f2f3f5;
+}
+
+.pc-name {
+  position: absolute;
+  top: var(--name-top);
+  left: var(--inset);
+  right: var(--inset);
+  margin: 0;
+  font-size: 9cqw;
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pc-stats {
+  position: absolute;
+  top: calc(var(--name-top) + 8.6%);
+  left: var(--inset);
+  right: var(--inset);
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  margin: 0;
+  padding-top: 1.8cqw;
+  border-top: 0.3cqw solid color-mix(in srgb, var(--ink) 35%, transparent);
+}
+.pc-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1cqw;
+  min-width: 0;
+}
+.pc-stat-label {
+  font-size: 3.6cqw;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  opacity: 0.85;
+}
+.pc-stats {
+  /* Grade colours: deep tones on light faces, bright tones on the dark faces. */
+  --grade-good: #15803d;
+  --grade-ok: #b45309;
+  --grade-bad: #b91c1c;
+}
+.player-card[data-skin='weekly-black'] .pc-stats,
+.player-card[data-skin='pioneer'] .pc-stats {
+  --grade-good: #4ade80;
+  --grade-ok: #facc15;
+  --grade-bad: #f87171;
+}
+.pc-stat-value {
+  display: flex;
+  align-items: baseline;
+  margin: 0;
+  font-size: 6.2cqw;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+.pc-stat-value[data-long] {
+  font-size: 5cqw;
+}
+.pc-stat-value[data-grade='good'] {
+  color: var(--grade-good);
+}
+.pc-stat-value[data-grade='ok'] {
+  color: var(--grade-ok);
+}
+.pc-stat-value[data-grade='bad'] {
+  color: var(--grade-bad);
+}
+.pc-stat-unit {
+  margin-left: 0.2cqw;
+  font-size: 2.9cqw;
+  font-weight: 700;
+}
+.pc-crests {
+  /* Nation / league / club row of FC cards: flag, VPS provider and OS, in their own colours. */
+  /* Anchored to the stats row (not the card tip) so every face lines up the same way. */
+  position: absolute;
+  top: calc(var(--name-top) + 22.6%);
+  left: var(--inset);
+  right: var(--inset);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 2.4cqw;
+}
+.pc-crest {
+  display: grid;
+  place-items: center;
+  min-width: 7.4cqw;
+  height: 7.4cqw;
+  padding: 0.9cqw;
+  overflow: hidden;
+  border-radius: 1.4cqw;
+  background: rgb(255 255 255 / 0.92);
+  box-shadow: 0 0.4cqw 1.2cqw rgb(0 0 0 / 0.25);
+}
+.pc-crest[data-kind='flag'] {
+  width: 9.9cqw;
+  min-width: 0;
+  padding: 0;
+  border-radius: 0.9cqw;
+  box-shadow:
+    0 0 0 0.3cqw rgb(255 255 255 / 0.85),
+    0 0.4cqw 1.2cqw rgb(0 0 0 / 0.25);
+}
+.pc-crest img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.pc-crest[data-kind='flag'] img {
+  object-fit: cover;
+}
+.pc-crest svg {
+  width: 5.6cqw;
+  height: 5.6cqw;
+}
+.pc-crest-text {
+  color: #1b1e26;
+  font-size: 3.2cqw;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  :root[data-motion='true'] .live-card:hover .player-card.card-interactive {
+    transform: translateY(-3px);
+  }
+}
+
+/* Live strip: page theme tokens, readable in light and dark. */
+.card-live-strip {
+  container-type: inline-size;
+  display: grid;
+  gap: 3px;
+  padding: 7px 9px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--foreground);
+  font-size: 12px;
+  line-height: 1.4;
+  font-variant-numeric: tabular-nums;
+}
+.strip-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  min-width: 0;
+  white-space: nowrap;
+}
+.strip-speed b {
+  font-weight: 700;
+  margin-right: 2px;
+}
+.strip-down b {
+  color: var(--strip-down);
+}
+.strip-up b {
+  color: var(--strip-up);
+}
+.strip-carriers {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+}
+.strip-carrier {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.strip-carrier-name {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 11px;
+  text-overflow: ellipsis;
+}
+.strip-carrier-name i {
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  /* Probes not mapped to a carrier get a neutral dot. */
+  background: var(--carrier, var(--muted));
+}
+.strip-latency {
+  font-size: 13px;
+  font-weight: 700;
+}
+.strip-unit {
+  margin-left: 1px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 500;
+}
+.strip-empty {
+  color: var(--muted);
+}
+.strip-bar {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: baseline;
+  column-gap: 6px;
+  row-gap: 3px;
+  font-size: 11px;
+}
+.strip-bar-label {
+  color: var(--muted);
+}
+.strip-bar-leader {
+  align-self: center;
+  border-bottom: 1px dotted var(--border);
+}
+.strip-bar-value {
+  font-weight: 700;
+}
+.strip-segs {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(10, minmax(0, 1fr));
+  gap: 2px;
+}
+.strip-seg {
+  height: 6px;
+  border-radius: 1px;
+}
+
+.skin-thumb {
+  width: 100%;
+  max-width: 110px;
+  aspect-ratio: 640 / 860;
+}

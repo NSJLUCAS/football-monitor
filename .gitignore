@@ -1,0 +1,25 @@
+node_modules/
+dist/
+release/
+theme.tar.gz
+.research/
+.superpowers/
+.env*
+!.env.example
+playwright-report/
+test-results/
+coverage/
+*.log
+.wrangler/
+.lint-result.txt
+.format-result.txt
+# Development notes and evidence stay out of the public repository.
+AGENTS.md
+PROJECT_STATE.md
+DECISIONS.md
+WORKLOG.md
+DELIVERY_REPORT.md
+docs/development/
+docs/superpowers/
+docs/screenshots/composition-*.png
+.claude/

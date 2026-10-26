@@ -1,0 +1,38 @@
+{
+  "gold": {
+    "left": 7,
+    "right": 93.1,
+    "top": 1.2,
+    "bottom": 98.8
+  },
+  "silver": {
+    "left": 7,
+    "right": 93.1,
+    "top": 1.2,
+    "bottom": 98.8
+  },
+  "bronze": {
+    "left": 7,
+    "right": 93.1,
+    "top": 1.2,
+    "bottom": 98.8
+  },
+  "weekly-black": {
+    "left": 5.9,
+    "right": 94.1,
+    "top": 1.2,
+    "bottom": 98.8
+  },
+  "pioneer": {
+    "left": 0.6,
+    "right": 99.4,
+    "top": 1.2,
+    "bottom": 98.8
+  },
+  "legend": {
+    "left": 0.6,
+    "right": 99.5,
+    "top": 1.2,
+    "bottom": 98.8
+  }
+}

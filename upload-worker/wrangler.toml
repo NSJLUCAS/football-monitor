@@ -1,0 +1,26 @@
+name = "football-monitor-upload"
+main = "index.ts"
+compatibility_date = "2026-10-26"
+workers_dev = false
+
+# Add a custom-domain route, then protect this entire host with Cloudflare Access.
+# routes = [{ pattern = "upload.example.com", custom_domain = true }]
+
+[vars]
+ACCESS_TEAM_DOMAIN = "replace-me.cloudflareaccess.com"
+ACCESS_AUD = "replace-with-access-application-audience"
+ALLOWED_EMAILS = "replace-with-your-admin-email"
+ALLOWED_ORIGIN = "https://monitor.example.com"
+PUBLIC_IMAGE_BASE = "https://images.example.com"
+
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "football-monitor-images"
+
+[[durable_objects.bindings]]
+name = "LIMITER"
+class_name = "UploadLimiter"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["UploadLimiter"]

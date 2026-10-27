@@ -2,7 +2,7 @@
 
 为极简探针 Monitor 打造的足球球星卡主题：每台服务器都是一名球员，**你的服务器，你的主场**。
 
-由 [NSJLUCAS](https://github.com/NSJLUCAS) 维护，当前版本 `1.0.1`。
+由 [NSJLUCAS](https://github.com/NSJLUCAS) 维护，当前版本 `1.0.2`。
 
 [![preview](preview.png)](preview.png)
 
@@ -119,7 +119,7 @@ release/SHA256SUMS.txt             # SHA-256 校验
 
 ## 鸣谢
 
-- 极简探针 Monitor 及其主题机制；README 体例参考 [monitor-theme-emerald](https://github.com/binaryu/monitor-theme-emerald)
+- 极简探针 Monitor 及其主题机制
 - 金卡、周黑、开拓者、传奇卡面与 5 张默认立绘由站长提供；立绘为真实球员插画，肖像与商标归各自权利人所有，详见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)
 - 版式参考 FUT.GG；本项目与 EA 无隶属关系，不使用 EA 的素材、商标或字体
 

@@ -332,7 +332,8 @@ describe('top bar search', () => {
 
   it('shows the theme version in the footer and the text wordmark', async () => {
     const { wrapper } = await mountApp('/settings')
-    expect(wrapper.find('.site-footer').text()).toContain('V1.0.1')
+    const { version } = JSON.parse(readFileSync('theme.json', 'utf8')) as { version: string }
+    expect(wrapper.find('.site-footer').text()).toContain(`V${version}`)
     expect(wrapper.find('.brand').text().replace(/\s+/g, '')).toBe('FOOTBALLMONITOR')
     wrapper.unmount()
   })

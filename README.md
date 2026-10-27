@@ -1,171 +1,128 @@
-# Football Monitor
+### Football Monitor
 
-**你的服务器，你的主场。** 为极简探针 Monitor 构建的第三方足球球星卡主题。Vue 3 静态 SPA，当前版本 `1.0.1`。源码与发布：<https://github.com/NSJLUCAS/football-monitor>。
+为极简探针 Monitor 打造的足球球星卡主题：每台服务器都是一名球员，**你的服务器，你的主场**。
 
-![首页：本地模拟 API 的视觉验收](docs/screenshots/dashboard-1440.png)
+由 [NSJLUCAS](https://github.com/NSJLUCAS) 维护，当前版本 `1.0.1`。
 
-## 功能
+[![preview](preview.png)](preview.png)
 
-- FC 版式球星卡：左上综合分与国家/地区，左侧卡框边缘为“线路技能”徽章（显示三网线路设置里填写的线路名，如 CN2 GIA、9929、CMIN2，小圆点区分电信/联通/移动），中部立绘，下方节点名与 CPU / 内存 / 硬盘 / 流量 / 在线 / 延迟六项真实数值（占用百分比、运行天数、24 小时平均延迟 ms，按数值绿/黄/红着色），左上综合分为网络质量分（见下文），最底部一排徽章依次为国旗（按节点国家代码）、VPS 服务商 LOGO（节点设置中选择，内置阿里云、腾讯云、Vultr、DigitalOcean、搬瓦工、CloudCone、BageVM、VMISS、Akile 等，或自定义名称与 HTTPS LOGO，可用上传服务上传）和操作系统 LOGO（按节点上报的系统名称自动识别）；卡下实时条显示上下行速率、探针后台前三个测速点（按后台顺序，地区名取自测速任务名；任务名含“电信 / 联通 / 移动”时按运营商着色并简写）的延迟，以及最近一段时间的“延迟”“丢包”色块条。
-- 六套卡面：档位卡 金卡 / 银卡 / 铜卡，特殊卡 周黑 / 开拓者 / 传奇；另有「自动（按评分）」，按综合分在铜 / 银 / 金之间切换（档位线 65 / 75，2 分滞后防闪烁）。
-- 首页灰蓝底、橙色强调的平面风格：桌面 1440px 标准布局每行 7 张、紧凑 8 张、大卡 6 张，手机每行 2 张；状态筛选、综合分/名称排序和顶栏搜索（`/` 聚焦）。
-- 节点详情为球员资料页：大卡、粘性分区导航（费用与流量 / 三网线路 / 评分明细 / 历史表现 / 系统信息）与逐项评分说明。
-- CPU / 内存 / 磁盘、上下行速率、周期配额、累计流量、系统 Uptime、费用与到期状态。
-- 全局默认卡面、单节点覆盖、继承与恢复默认；按稳定节点 ID 保存，重命名不丢失。
-- 搜索、分组筛选和随分组变化的汇总；沿用 Hub 返回的节点与分组顺序。首页汇总为 8 张卡片：在线节点、平均评分、内存用量、硬盘用量、剩余价值、累计流量、实时上行、实时下行；右侧“即将到期”排行按到期日列出前 5 台（≤7 天红、≤30 天黄，已过期排最前），点击进入详情。剩余价值 = 续费价 × Hub 给出的剩余天数 ÷ 周期天数，按设置里的“汇率（折合人民币）”换算后合计（内置参考汇率，可修改；缺到期日或汇率的付费节点不计入并提示台数）。关闭“显示费用”时隐藏剩余价值与到期排行。
-- 节点详情、保留期驱动的历史范围、轻量 SVG 资源/网络/TCP 延迟曲线和可读数据表。
-- 原生 WebSocket，gzip / 文本帧顺序解码、断线 HTTP 轮询、有限重连、隐藏页面暂停与恢复。
-- 站长可视化设置，官方 Hub 配置 GET / 合并 / PUT / 读回校验；64 KiB 限制和损坏/未来版本保护。
-- 立绘 HTTPS URL、本地选择、裁切缩放位移、WebP 压缩导出和实时预览。无上传服务也可完整使用基础流程。
-- 可选 Cloudflare Access + R2 + Durable Object 上传 Worker，凭证与密钥不进入主题。
-- 桌面、平板、手机布局；键盘操作、减少动态效果、错误/空白/离线状态。
+## 特性
 
-金卡、周黑、开拓者、传奇卡面由站长设计并提供（2026-10-26）；银卡、铜卡由金卡调色生成；内置的 5 张默认立绘由站长提供（2026-10-27），是真实球员的插画，其中一张带球队与赞助商标志；它们不属于本项目的 MIT 授权，肖像与商标归各自权利人所有，详见 THIRD_PARTY_NOTICES。原创中性运动员 SVG 仍可在设置中选用。不使用 EA、EA SPORTS FC 或 FUT.GG 的素材、商标、字标或字体；FUT.GG 只作版式参考。本站与 EA 无隶属关系。用户应自行确认所用立绘图片的授权。
+- 🃏 **FC 风格球星卡**：综合分、国家/地区、线路徽章、立绘、六项真实数值（CPU / 内存 / 硬盘 / 流量 / 在线 / 延迟），底部带国旗、VPS 服务商与系统 LOGO。
+- 🎨 **六套卡面**：金卡、银卡、铜卡、周黑、开拓者、传奇，另有「自动」按评分在铜 / 银 / 金之间切换。
+- 📶 **网络质量评分**：基于探针后台前三个测速任务的 24 小时延迟、抖动、丢包计算，1–99 分。
+- 📡 **三网延迟与丢包**：卡下实时条显示上下行速率、三个测速点延迟，以及延迟 / 丢包色块条。
+- ⚡ **实时推送**：原生 WebSocket，支持 gzip 解码、断线轮询与自动重连，页面隐藏时暂停。
+- 📊 **首页汇总**：在线节点、平均评分、内存/硬盘用量、剩余价值、累计流量、实时上下行，以及即将到期排行。
+- 🧑 **球员资料页**：节点详情含大卡、分区导航、评分明细、历史曲线与系统信息。
+- 🖼️ **自定义立绘**：内置 5 张默认立绘，也可裁切、缩放并导出 WebP 后绑定自己的 HTTPS 图片。
+- ⚙️ **可视化设置**：站长登录后在页面内调整卡面、布局、外观，支持单节点覆盖，保存后读回校验。
+- 📱 **响应式布局**：桌面每行最多 8 张卡，手机每行 2 张；支持键盘操作与减少动态效果。
 
-## 网络质量评分
+## 截图
 
-左上角综合分只看网络：取节点在探针后台的前三个测速任务（按任务 ID 升序，与卡下实时条相同），用最近 24 小时的数据计算，1–99 整数。没有测速数据显示 `—`（银卡），离线显示 `OFF`。
+|                      节点详情                      |                        立绘编辑                        |
+| :------------------------------------------------: | :----------------------------------------------------: |
+| ![节点详情](docs/screenshots/node-detail-1440.png) | ![立绘编辑](docs/screenshots/portrait-editor-1440.png) |
 
-| 分项 | 权重 | 取值                                                     | 0–100 分                          |
-| ---- | ---- | -------------------------------------------------------- | --------------------------------- |
-| 延迟 | 35%  | 三个测速点平均延迟                                       | ≤ 30 ms 满分，≥ 300 ms 为 0，线性 |
-| 抖动 | 25%  | 每个时段最高与最低延迟之差的平均（无区间时用相邻读数差） | ≤ 5 ms 满分，≥ 100 ms 为 0，线性  |
-| 丢包 | 40%  | Hub 给出的窗口丢包率（没有时按时段平均，失败算全丢）     | 0% 满分，每 1% 扣 10 分           |
+|                    主题设置                     |                    手机端                     |
+| :---------------------------------------------: | :-------------------------------------------: |
+| ![主题设置](docs/screenshots/settings-1440.png) | ![手机端](docs/screenshots/dashboard-390.png) |
 
-缺数据的分项不参与，权重按剩余分项分配。档位：综合分 < 65 铜卡，65–74 银卡，≥ 75 金卡；升档需超过档位线 2 分，降档需低于档位线 2 分。打开页面时为每个在线节点取一次 24 小时数据（最多 3 路并发），之后屏幕内的卡片每 10 分钟刷新。测速点在国内时，海外节点的延迟分天然偏低。
+六套卡面：
 
-卡面六项（CPU / 内存 / 硬盘 / 流量 / 在线 / 延迟）显示真实数值，不参与综合分。
+|                      金卡                       |                     银卡                     |                   铜卡                    |
+| :---------------------------------------------: | :------------------------------------------: | :---------------------------------------: |
+|     ![金卡](docs/screenshots/skin-gold.png)     |  ![银卡](docs/screenshots/skin-silver.png)   | ![铜卡](docs/screenshots/skin-bronze.png) |
+|                    **周黑**                     |                  **开拓者**                  |                 **传奇**                  |
+| ![周黑](docs/screenshots/skin-weekly-black.png) | ![开拓者](docs/screenshots/skin-pioneer.png) | ![传奇](docs/screenshots/skin-legend.png) |
+
+> 截图来自本地模拟 API（`dev/mock-server.ts`），不代表真实服务器数据。
+
+## 安装方法
+
+### 方式一：从 GitHub 安装（推荐）
+
+1. 登录 Monitor Hub 管理后台，进入「主题」页面
+2. 填入 `https://github.com/NSJLUCAS/football-monitor`，点击「从 GitHub 安装」
+3. 选择 Football Monitor；之后可在卡片上「从 GitHub 更新」
+
+### 方式二：面板上传安装
+
+1. 到 [Releases](https://github.com/NSJLUCAS/football-monitor/releases) 下载 `theme.tar.gz`（不是 Source code）
+2. 登录 Hub 管理后台，进入「主题」页面
+3. 上传 `theme.tar.gz`，然后在后台选择 Football Monitor
+
+### 方式三：服务器目录放置
+
+```bash
+# 解压 football-monitor.tar.gz，得到 football-monitor/ 目录
+tar -xzf football-monitor.tar.gz -C /opt/monitor/data/themes/
+```
+
+放入 Hub 的 `--themes` 目录后，在后台选择该主题即可。可用 `sha256sum -c SHA256SUMS.txt` 校验下载。
 
 ## 本地开发
 
-使用 Node.js 22.22+ 或 24 LTS，以及 npm。依赖版本由 `package-lock.json` 固定。当前验证环境为 Windows / Node 24.14.1 / npm 11.11.0。
+需要 Node.js 22.22+ 或 24 LTS，使用 npm 安装依赖：
 
-```powershell
+```bash
 npm ci
-# 终端 1：独立本地模拟 API，仅开发使用
-npm run dev:mock
-# 终端 2：Vue 开发页面 http://127.0.0.1:5173
-npm run dev
+npm run dev:mock   # 终端 1：本地模拟 API（仅开发使用）
+npm run dev        # 终端 2：http://127.0.0.1:5173
 ```
 
-连接授权的测试 Hub 时，只启动开发页面，将同源 API 代理目标设为该 Hub：
+连接测试 Hub 时只启动开发页面，并指定代理目标：
 
-```powershell
-$env:MONITOR_HUB = 'https://your-test-hub.example.com'
-npm run dev
+```bash
+MONITOR_HUB=https://your-test-hub.example.com npm run dev
 ```
 
-代理开发跨域环境不等于生产登录验证；测试保存应在同源 Hub 中进行。不要用开发代理操作生产配置。
+提交前运行全部检查：
 
-```powershell
-npm run check           # 严格类型、ESLint、Prettier
-npm test                # 单元、组件、服务与 Worker 测试
-npm run build           # 纯正式应用，绝不导入 dev/fixture 数据
-npx playwright install chromium
-npm run test:e2e        # 独立模拟 API + 正式构建的浏览器测试
-npm run licenses        # 许可证清单与必要声明（含 sharp/libvips 开发依赖）
-npm run cards           # 仅更换卡面时：design/cards → src/assets/cards（sharp）
-npm run icons           # 改 public/favicon.svg 后：重新生成 180×180 apple-touch-icon.png
-npm run package        # 需已存在 dist/ 和 preview.png；Windows 请在 PowerShell 运行（需系统 tar.exe），Linux/macOS 用系统 tar
-npm run package:check  # 独立 gzip/tar/manifest/资源/限制校验
+```bash
+npm run check && npm test && npm run build && npm run test:e2e && npm run package:check
 ```
 
-浏览器测试会在 9911 启动隔离模拟 API、在 4173 启动构建预览；开发页面用 5173。模拟站点明确显示“本地模拟验收 · 非真实服务器”。`dev/`、`tests/`、上传服务和截图不进入主题安装包。
+## 构建主题包
 
-## 安装到 Monitor Hub
+```bash
+npm run build && npm run package
+```
 
-每个 [GitHub Release](https://github.com/NSJLUCAS/football-monitor/releases) 由 CI 构建，附带：
+产物包含 Hub 安装包与目录包：
 
-| Release 资产              | 结构                                            | 用途                                                                                          |
-| ------------------------- | ----------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| `theme.tar.gz`            | 根部直接是 `theme.json`、`preview.png`、`dist/` | **Hub 安装包**：「从 GitHub 安装」、一键更新和后台上传都用它；与 Hub 安装器、官方默认主题一致 |
-| `football-monitor.tar.gz` | 根部为 `football-monitor/` 目录                 | 人工解压得到完整主题目录，放入 Hub 的 `--themes` 目录；不要上传给后台安装器                   |
-| `SHA256SUMS.txt`          | 两个包的 SHA-256                                | `sha256sum -c SHA256SUMS.txt` 校验下载                                                        |
+```
+release/hub-install/theme.tar.gz   # Hub 安装包：根部为 theme.json、preview.png、dist/
+theme.tar.gz                       # 目录包：根部为 football-monitor/
+release/SHA256SUMS.txt             # SHA-256 校验
+```
 
-两包包含相同构建文件，`short` 均为 `football-monitor`。`theme.json` 的 `url` 指向本仓库，`version` 与 release 标签一致（`v1.0.1` 对 `1.0.1`）。
+打包后可运行 `npm run package:check` 校验压缩包结构、资源与大小限制。
 
-三种安装方式：
+## 配置与使用
 
-1. **从 GitHub 安装（推荐）**：登录 Hub → 主题页面 → 填 `https://github.com/NSJLUCAS/football-monitor` → 「从 GitHub 安装」→ 选择 Football Monitor。之后可用卡片上的「从 GitHub 更新」。
-2. **上传**：下载 release 里名为 `theme.tar.gz` 的文件（不是 Source code），在主题页上传。
-3. **目录安装**：解压 `football-monitor.tar.gz` 得到 `football-monitor/`，由站长放进 Hub 的 `--themes` 目录（一键脚本部署为 `/opt/monitor/data/themes/`），然后在后台选择。本项目不代为操作你的服务器。
+主题设置统一保存到 `/api/themes/football-monitor/config`，**公开可读**，请勿填写密码、Token 或内网地址。立绘上传服务、评分算法、三网探测配置、兼容性与维护说明见 [详细手册](docs/manual.md)，可选的 Cloudflare R2 上传 Worker 见 [上传服务说明](docs/upload-service.md)。
 
-切换公开页后按实际站点检查节点、登录和设置保存。无需修改 Hub、Agent 或官方管理页面。升级前备份 Hub 数据库及主题配置，保留旧安装包用于回滚。
+## 技术栈
 
-本地 `npm run package` 生成同样两包：`release/hub-install/theme.tar.gz` 对应 release 的 `theme.tar.gz`，根目录的 `theme.tar.gz` 对应 `football-monitor.tar.gz`。统计、SHA-256 和结构报告在 `release/package-verification.json` 与 `release/SHA256SUMS.txt`；静态检查不等于真实 Hub 安装成功。
+| 类别 | 技术                                 |
+| ---- | ------------------------------------ |
+| 框架 | Vue 3（Composition API）+ TypeScript |
+| 构建 | Vite 7                               |
+| UI   | shadcn-vue + Reka UI                 |
+| 样式 | Tailwind CSS 4                       |
+| 状态 | Pinia                                |
+| 路由 | Vue Router                           |
+| 图标 | Lucide、flag-icons、simple-icons     |
+| 测试 | Vitest + Playwright                  |
 
-## 路由
+## 鸣谢
 
-| 路径         | 页面                       |
-| ------------ | -------------------------- |
-| `/`          | 主场（球星卡首页）         |
-| `/node/{id}` | 节点详情（球员资料页）     |
-| `/settings`  | 主题设置（站长登录后可用） |
+- 极简探针 Monitor 及其主题机制；README 体例参考 [monitor-theme-emerald](https://github.com/binaryu/monitor-theme-emerald)
+- 金卡、周黑、开拓者、传奇卡面与 5 张默认立绘由站长提供；立绘为真实球员插画，肖像与商标归各自权利人所有，详见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)
+- 版式参考 FUT.GG；本项目与 EA 无隶属关系，不使用 EA 的素材、商标或字体
 
-其余路径回到首页。Hub 前有按路径放行的反代或 WAF 时，请放行 `/node/` 与 `/settings`，否则刷新详情页或设置页会被拦截。
+## License
 
-## 主题设置
-
-在 Monitor Hub 登录后，公开主题右上角出现设置入口；`/api/me` 确认站长身份，后端会话决定写权限。匿名访客只有查看功能。
-
-1. 「卡面风格」选站点默认卡面：自动（按评分）或六套卡面之一；「恢复默认卡面」回到自动。
-2. 「全局设置」调布局、尺寸、外观、动效和显示区块。
-3. 「节点设置」选稳定节点 ID，为单台机器覆盖卡面（含显式「自动」）或恢复继承。
-4. 「立绘编辑」和「三网线路」配置节点专属资料。
-5. 点击「保存到 Hub」。界面只有在 PUT 成功并读回确认后才提示成功；失败保留草稿。
-
-站点设置统一保存到 `/api/themes/football-monitor/config`。单节点配置为静态声明的 `node_config` JSON 字符串，当前 schema version 1，可迁移 version 0。无效模板回退；损坏或未来版本 JSON 会阻止覆盖，需先在官方后台备份并修复。
-
-从 1.0.0 升级时旧卡面 ID 在读取时自动换算：节点级 `classic-gold → gold`、`black-elite → weekly-black`、`white-icon → legend`、`blue-europe` / `minimal-carbon → auto`；全局默认的 `classic-gold`（V1 默认值）换算为 `auto`。换算后的值只在站长下次保存时写回，立绘与三网关联不受影响。
-
-保存会重新读取原始对象，只合并本次修改的全局字段及节点 ID，保留其他字段。Hub 没有条件写入版本号；同一字段的并发修改仍可能发生最后写入覆盖，请避免多个窗口同时编辑同一节点。
-
-主题设置**公开可读**，不要填写密码、Token、API Secret、带凭据地址或内网 URL。显示开关只影响画面，真正的节点保密由 Hub 的公开权限决定。
-
-## 自定义立绘
-
-「立绘编辑」顶部可选内置立绘：自动（按节点编号轮换 5 张）、5 张内置立绘之一，或原创中性运动员；选中后仍可用缩放、位移微调。绑定了图片 URL 时以图片为准，图片加载失败时回到该节点的内置立绘。新增内置立绘：把透明背景原图放入 `design/portraits/`，在 `scripts/portraits.mjs` 与 `src/domain/portraits.ts` 各加一项，运行 `npm run portraits`。
-
-基础流程：选择本地 PNG/JPG/WebP → 调缩放（65%–300%）/水平与垂直位置（±60%）/显示区域/适配方式 → 导出 1200×1500 WebP → 上传到你自己的 HTTPS 图片托管 → 绑定图片 URL → 保存到 Hub。
-
-本地文件仅临时预览，明确显示「未保存」。没有托管 URL 时，保存不会把本地图片冒充永久图片。临时对象地址和 Base64 不进入站点配置，也不使用 localStorage 存储站点图片。导出来自本地源，避免外部跨域图片污染 Canvas。
-
-限制：8 MiB / 24MP / 单边 10000px；实际内容签名、完整容器/图像块/扫描、PNG CRC 与浏览器解码都要通过。JPEG 限常见 8-bit baseline/progressive，WebP 限静态图片。缩放 65%–300%，X/Y ±60%；远程 URL 只允许公开 HTTPS，不接受用户凭据、本地/私有字面地址或危险协议。远程失效时回到该节点的内置立绘。SVG 只用于项目内置资产，用户上传仅接受 PNG/JPG/WebP。
-
-预览和导出统一使用 800×1000 参考坐标，包括显示区域裁切；立绘可超出参考框，在四周各留 25% 的出血区内绘制（共 1200×1500，仍为 4:5），卡面画面区域四边柔和渐隐，不再硬切。导出图覆盖整个出血区，绑定后按出血区放置，构图与导出前一致。「绑定的图片」区分原图与已裁切导出图；导出 WebP 后会自动选择已裁切模式，再填写托管 URL 时自动恢复位置，避免重复裁切。增强上传模式也会自动重置位置。切换设置分类和节点会保留本地图草稿；离开设置会话或失去登录后释放。
-
-![立绘编辑：未托管的本地预览](docs/screenshots/portrait-editor-1440.png)
-
-## 三网探测配置
-
-先在官方 Hub 后台建立探测任务并分配给节点。本主题从该节点的历史接口 `probes` 获取任务名与稳定 ID，不访问不存在的公开任务列表接口，也不会公开目标地址。
-
-「三网线路」为电信、联通、移动分别选择任务 ID，并选择/填写线路。预设 CN2 GIA、CN2 GT、163、9929、4837、CMI、CMIN2、普通线路、未知、自定义。**线路不由延迟推断。**
-
-未配置显示「未配置探测」；全失败显示「探测失败」；样本超过 `max(300秒, step×3)` 显示「数据过期」；任务删除或接口错误显示「数据暂不可用」。没有值显示 `—`。已配置任务的可见卡片按需读取，最多三路并发，缓存 60 秒，不随每次 WS 重新查询所有节点。
-
-这些数值是 **VPS 向配置目标建立 TCP 连接的握手时间**，不是 ICMP，也不保证是访客访问 VPS 的时延。
-
-## 可选图片上传服务
-
-需要你自己的 Cloudflare 账户、R2 专用图片桶、可公开读取图片的 HTTPS 域名、Access 应用和允许上传的站长身份。完整步骤见 [上传服务配置与安全说明](docs/upload-service.md)。
-
-Worker 在服务端验证 Access JWT 的签名、issuer、audience、必需时间/身份声明、过期和邮箱白名单；按站长身份用 Durable Object 事务限制每分钟 5 次。缺少限流绑定会拒绝上传。只允许指定 Origin，按实际流读取限制 8 MiB，校验真实格式/尺寸，用 UUID 存储并返回持久 URL。
-
-**没有配置也不影响基础模式。** 本地已进行真实签名/伪造凭证/类型/尺寸/限流测试和 Wrangler dry-run；无真实云端凭证，不宣称已完成实际 R2 上传、Access 浏览器跨域或域名联调。
-
-## 兼容性与已知限制
-
-- API 以 [核实的官方文档及源码版本](docs/references/upstream.md) 为基准。旧 Hub 缺少分组/公开备注等字段可降级，缺少 `expires_in` 显示原始到期日期，缺少 `last_seen_ago` 显示时长未知，不用浏览器时钟编造相对时间。旧 Hub 缺少主题 PUT 或 probes 时，相应能力不可用并显示错误。
-- 需要支持 ES2022、Canvas、原生 WebSocket 的现代浏览器。有 `DecompressionStream` 时请求 gzip，没有时请求文本。旧移动浏览器未进行实机验证。
-- 没有设置立绘的节点按节点编号轮换 5 张内置立绘；也可在「立绘编辑」中固定某一张或改用原创中性 SVG。卡面为站长提供的位图，版面位置由 `src/domain/skins.ts` 的百分比参数控制。
-- 评分是展示用的网络质量估算，不是 SLA 或告警阈值；只统计探针后台的前三个测速任务，结果取决于测速点所在位置。
-- 浏览器自动化使用隔离模拟 API；没有真实测试 Hub，因此未证明实际安装、真实会话 Cookie、生产代理或旧版 Hub 的运行兼容。
-- 当前按需历史图使用 Hub 桶平均值，间断样本不连线；不会用平均丢包率冒充整个窗口丢包率。
-- 截图、测试和 dry-run 都是本地与 CI 证据；GitHub Actions 在 Ubuntu 上跑全部门禁并为 `v*` 标签构建 release，不会自动部署到任何 Hub。
-
-## 维护
-
-新增卡面：① 把站长提供的透明 PNG 原图放入 `design/cards/`；② 在 `scripts/cards.mjs` 加一行 `emit`，运行 `npm run cards`，生成 `src/assets/cards/<id>.webp` 并更新 `frames.json`（目标 ≤ 150 KB）；③ 在 `src/domain/skins.ts` 加一条皮肤（名称、图片、文字色、分组标签配色需 ≥ 4.5:1 对比度、`layout` 百分比），并把 ID 加入 `src/domain/types.ts` 的 `SkinId` 与 `theme.json` 选项。然后把 ID 加入 `e2e/theme.spec.ts` 的 `skinIds`，跑全部门禁，用 `npx playwright test e2e/theme.spec.ts -g dashboard` 生成 `docs/screenshots/skin-<id>.png` 人工核对文字未压到卡框、标签未压到立绘。`design/` 与 `scripts/` 不进入安装包。配置 key 发布后不改名，含义改变应加新 key；schema 变更增加显式迁移与测试。
-
-升级依赖后运行全部验证并重新检查截图、许可证和压缩包；不要只改版本号。构建的正式代码不会导入开发模拟服务器。`LICENSE` 为 MIT；运行依赖声明见 `THIRD_PARTY_NOTICES.md`，它会一并进入主题 `dist/`。
+[MIT](LICENSE)（内置立绘除外，见上）

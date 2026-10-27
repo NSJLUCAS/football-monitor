@@ -64,7 +64,7 @@ export const useMonitorStore = defineStore('monitor', () => {
       for (const node of nodes.value)
         if (node.online && !prefetched.has(node.id)) {
           prefetched.add(node.id)
-          void loadQuality(node.id)
+          void loadQuality(node.id, false, true)
         }
     },
     { immediate: true },
@@ -116,10 +116,11 @@ export const useMonitorStore = defineStore('monitor', () => {
     loading.value = true
     error.value = ''
     closed.value = false
-    const [identity, settings] = await Promise.allSettled([
-      request('/api/me'),
-      request('/api/themes/football-monitor/config'),
-    ])
+    const started = Promise.allSettled([request('/api/me'), request('/api/themes/football-monitor/config')])
+    // Nodes are requested in the same round trip; the reply is used only once identity allows it.
+    const early = request('/api/nodes')
+    early.catch(() => {})
+    const [identity, settings] = await started
     if (epoch !== boot) return
     if (identity.status === 'rejected') {
       error.value = '无法读取站点信息，请检查网络后重试'
@@ -152,6 +153,8 @@ export const useMonitorStore = defineStore('monitor', () => {
       },
       onUnauthorized: unauthorized,
       beforeRefresh: refreshIdentity,
+      // A tab opened in the background starts later, with a fresh request.
+      initialNodes: document.hidden ? undefined : early,
     })
     if (!document.hidden) realtime.start()
   }
@@ -168,12 +171,16 @@ export const useMonitorStore = defineStore('monitor', () => {
       else if (epoch === boot) pingErrors.value[id] = e instanceof Error ? e.message : '延迟数据不可用'
     }
   }
-  async function loadQuality(id: number, force = false) {
-    if (!force && Date.now() - (qualityAt[id] ?? -Infinity) < 600000) return
+  async function loadQuality(id: number, force = false, background = false) {
+    if (!force && Date.now() - (qualityAt[id] ?? -Infinity) < 600000) {
+      // A visible card moves its still-queued prefetch ahead.
+      if (!background) history.prioritize(id, 24, 'ping')
+      return
+    }
     const epoch = boot
     qualityAt[id] = Date.now()
     try {
-      const result = await history.get(id, 24, 'ping', force)
+      const result = await history.get(id, 24, 'ping', force, background)
       if (epoch === boot && !closed.value) {
         quality.value[id] = result
         delete qualityErrors.value[id]
@@ -197,6 +204,14 @@ export const useMonitorStore = defineStore('monitor', () => {
     } finally {
       saving.value = false
     }
+  }
+  // Cards rendered in the first batch of a page load fade in; cards mounted later appear at once.
+  let introCards = 0,
+    introClosed = false
+  function introSlot(): number | null {
+    if (introClosed) return null
+    if (introCards === 0) setTimeout(() => (introClosed = true))
+    return introCards++
   }
   const visibility = () => {
     if (document.hidden) realtime?.pause()
@@ -240,6 +255,7 @@ export const useMonitorStore = defineStore('monitor', () => {
     quality,
     qualityErrors,
     loadQuality,
+    introSlot,
     save,
     unauthorized,
     refreshIdentity,

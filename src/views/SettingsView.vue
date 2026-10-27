@@ -88,7 +88,11 @@ const toggleFields: {
     label: '全站服务器汇总',
     help: '显示首页在线、评分、内存、硬盘、流量与网速汇总卡片',
   },
-  { key: 'show_traffic', label: '周期流量区块', help: '显示详情页本周期流量块；不影响评分' },
+  {
+    key: 'show_traffic',
+    label: '周期流量区块',
+    help: '显示球星卡今日流量行，以及详情页本周期与今日流量块；不影响评分',
+  },
   {
     key: 'show_billing',
     label: '费用与到期',

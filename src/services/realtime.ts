@@ -24,6 +24,8 @@ interface Options {
   socket?: (url: string) => SocketLike
   fetchNodes?: (signal: AbortSignal) => Promise<unknown>
   beforeRefresh?: (signal: AbortSignal) => Promise<boolean>
+  /** A snapshot requested alongside the identity check; it replaces the first fetch and its identity refresh. */
+  initialNodes?: Promise<unknown>
   decode?: (data: unknown) => Promise<string>
 }
 export class RealtimeController {
@@ -37,6 +39,7 @@ export class RealtimeController {
   private retry?: ReturnType<typeof setTimeout>
   private watchdog?: ReturnType<typeof setTimeout>
   private pending: AbortController | null = null
+  private initial: AbortController | null = null
   private attempts = 0
   constructor(private options: Options) {}
   start(): void {
@@ -74,12 +77,15 @@ export class RealtimeController {
       revision = this.revision,
       controller = new AbortController()
     this.pending = controller
+    const initial = this.options.initialNodes
+    this.options.initialNodes = undefined
+    if (initial) this.initial = controller
     try {
-      if (this.options.beforeRefresh && !(await this.options.beforeRefresh(controller.signal))) return
+      if (!initial && this.options.beforeRefresh && !(await this.options.beforeRefresh(controller.signal)))
+        return
       if (!this.running || epoch !== this.epoch || controller.signal.aborted) return
-      const response = await (this.options.fetchNodes || ((signal) => request('/api/nodes', { signal })))(
-        controller.signal,
-      )
+      const response = await (initial ??
+        (this.options.fetchNodes || ((signal) => request('/api/nodes', { signal })))(controller.signal))
       const arrival = ++this.arrival
       if (this.running && epoch === this.epoch && revision === this.revision) {
         this.published = arrival
@@ -94,14 +100,18 @@ export class RealtimeController {
       } else this.options.onStatus?.('polling', e instanceof Error ? e.message : '数据暂不可用')
     } finally {
       if (this.pending === controller) this.pending = null
+      if (this.initial === controller) this.initial = null
     }
   }
   private fallback(message = '实时连接中断，已切换 HTTP 轮询') {
     if (!this.running) return
     this.disposeSocket()
-    this.epoch++
-    this.pending?.abort()
-    this.pending = null
+    // A first snapshot still on its way is as fresh as a new poll would be, so it is kept.
+    if (!this.initial || this.pending !== this.initial) {
+      this.epoch++
+      this.pending?.abort()
+      this.pending = null
+    }
     clearTimeout(this.watchdog)
     this.options.onStatus?.('polling', message)
     void this.fetchOnce()

@@ -92,13 +92,25 @@ describe('monitor store 24-hour probe history', () => {
     store.nodes = [node(1), node(2), node(3, false)]
     await flushPromises()
     expect(get.mock.calls.map((c) => c[0]).sort()).toEqual([1, 2])
-    expect(get).toHaveBeenCalledWith(1, 24, 'ping', false)
+    // The start-up prefetch runs in the background queue.
+    expect(get).toHaveBeenCalledWith(1, 24, 'ping', false, true)
     store.nodes = [node(1), node(2), node(3, false)]
     await flushPromises()
     expect(get).toHaveBeenCalledTimes(2)
     store.nodes = [node(1), node(2), node(3)]
     await flushPromises()
     expect(get.mock.calls.map((c) => c[0]).sort()).toEqual([1, 2, 3])
+  })
+
+  it('moves a queued prefetch ahead when its card asks for it', async () => {
+    const store = useMonitorStore()
+    vi.spyOn(store.history, 'get').mockReturnValue(new Promise(() => {}))
+    const prioritize = vi.spyOn(store.history, 'prioritize')
+    store.nodes = [node(1)]
+    await flushPromises()
+    expect(prioritize).not.toHaveBeenCalled()
+    void store.loadQuality(1)
+    expect(prioritize).toHaveBeenCalledWith(1, 24, 'ping')
   })
 
   it('refreshes at most every ten minutes unless forced', async () => {
@@ -117,7 +129,7 @@ describe('monitor store 24-hour probe history', () => {
     expect(get).toHaveBeenCalledTimes(2)
     await store.loadQuality(1, true)
     expect(get).toHaveBeenCalledTimes(3)
-    expect(get).toHaveBeenLastCalledWith(1, 24, 'ping', true)
+    expect(get).toHaveBeenLastCalledWith(1, 24, 'ping', true, false)
   })
 
   it('waits for the history before assigning the first tier', async () => {

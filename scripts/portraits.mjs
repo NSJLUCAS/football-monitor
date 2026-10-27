@@ -2,7 +2,7 @@
 import { mkdirSync } from 'node:fs'
 import sharp from 'sharp'
 
-const ids = ['arsenal', 'brazil', 'argentina', 'france', 'portugal']
+const ids = ['arsenal', 'brazil', 'argentina', 'city', 'portugal']
 mkdirSync('src/assets/portraits', { recursive: true })
 for (const id of ids) {
   const out = `src/assets/portraits/${id}.webp`

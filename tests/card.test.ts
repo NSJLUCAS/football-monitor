@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { nextTick } from 'vue'
 import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { createRouter, createMemoryHistory } from 'vue-router'
@@ -242,6 +243,20 @@ describe('card live strip', () => {
     expect(speed).toContain('↓2 KB/s')
     expect(speed).toContain('↑1 KB/s')
   })
+  it("shows today's traffic total with the split on hover, offline nodes included", () => {
+    const today = { ...online, day_rx: 8 * 1024 ** 3, day_tx: 2 * 1024 ** 3 }
+    for (const node of [today, { ...today, online: false, metrics: null }]) {
+      const row = mount(CardLiveStrip, {
+        props: { node, showCarriers: false, showTraffic: true },
+      }).find('.strip-bar[data-kind="today"]')
+      expect(row.find('.strip-bar-label').text()).toBe('今日流量')
+      expect(row.find('.strip-bar-value').text()).toBe('10 GB')
+      expect(row.attributes('title')).toBe('↓ 8 GB · ↑ 2 GB')
+      expect(row.find('.strip-segs').exists()).toBe(false)
+    }
+    const off = mount(CardLiveStrip, { props: { node: today, showCarriers: true, showTraffic: false } })
+    expect(off.find('.strip-bar[data-kind="today"]').exists()).toBe(false)
+  })
   it('shows the first three Hub probes in Hub order, labelled by region', () => {
     const strip = mount(CardLiveStrip, {
       props: { node: online, nodeConfig, history, showCarriers: true },
@@ -373,6 +388,39 @@ describe('live card', () => {
     wrapper.unmount()
   })
 
+  it('fades in the first cards of the page once their face has loaded, one after another', async () => {
+    vi.useFakeTimers()
+    useMonitorStore().config = parseConfig({})
+    const mountCard = () =>
+      mount(LiveCard, { props: { node: online }, global: { plugins: [router] }, attachTo: document.body })
+    const first = mountCard(),
+      second = mountCard()
+    expect(first.classes()).toContain('card-intro')
+    expect(first.classes()).not.toContain('card-ready')
+    expect(first.attributes('style')).toContain('--intro-delay: 0ms')
+    expect(second.attributes('style')).toContain('--intro-delay: 40ms')
+    // Faces of cards further down load as they scroll near, decoded off the main thread.
+    expect(first.find('img.pc-face').attributes()).toMatchObject({ loading: 'lazy', decoding: 'async' })
+    await first.find('img.pc-face').trigger('load')
+    expect(first.classes()).toContain('card-ready')
+    // A face that never loads still lets its card appear.
+    vi.advanceTimersByTime(1200)
+    await nextTick()
+    expect(second.classes()).toContain('card-ready')
+    // Cards mounted later (filters, groups, coming back from a detail page) appear at once.
+    const later = mountCard()
+    expect(later.classes()).not.toContain('card-intro')
+    for (const w of [first, second, later]) w.unmount()
+    vi.useRealTimers()
+  })
+
+  it('shows the first cards at once when motion is off', () => {
+    useMonitorStore().config = { ...parseConfig({}), motion: false }
+    const wrapper = mount(LiveCard, { props: { node: online }, global: { plugins: [router] } })
+    expect(wrapper.classes()).not.toContain('card-intro')
+    wrapper.unmount()
+  })
+
   // 30 ms on one probe with no loss scores 99.
   const scored = () => {
     const store = useMonitorStore()
@@ -385,12 +433,26 @@ describe('live card', () => {
   it('names the link with status and overall score for screen readers', () => {
     scored()
     const wrapper = mount(LiveCard, { props: { node: online }, global: { plugins: [router] } })
-    expect(wrapper.get('a').find('.sr-only').text()).toBe('查看 HK-01 详情，在线，综合 99')
+    expect(wrapper.get('a').find('.sr-only').text()).toBe(
+      '查看 HK-01 详情，在线，综合 99，今日下行 0 B，上行 0 B',
+    )
     useMonitorStore().nodes = [offline]
     const off = mount(LiveCard, { props: { node: offline }, global: { plugins: [router] } })
-    expect(off.get('a').find('.sr-only').text()).toBe('查看 HK-01 详情，离线，综合 无数据')
+    expect(off.get('a').find('.sr-only').text()).toBe(
+      '查看 HK-01 详情，离线，综合 无数据，今日下行 0 B，上行 0 B',
+    )
     wrapper.unmount()
     off.unmount()
+  })
+
+  it("leaves today's traffic out of the link name when traffic is hidden", () => {
+    scored()
+    const store = useMonitorStore()
+    store.config = { ...store.config, show_traffic: false }
+    const wrapper = mount(LiveCard, { props: { node: online }, global: { plugins: [router] } })
+    expect(wrapper.get('a').find('.sr-only').text()).toBe('查看 HK-01 详情，在线，综合 99')
+    expect(wrapper.find('.strip-bar[data-kind="today"]').exists()).toBe(false)
+    wrapper.unmount()
   })
 
   it('wraps the card and strip in one detail link', () => {
@@ -402,7 +464,7 @@ describe('live card', () => {
     const links = wrapper.findAll('a')
     expect(links).toHaveLength(1)
     expect(links[0]!.attributes('href')).toBe('/node/4')
-    expect(links[0]!.find('.sr-only').text()).toBe('查看 HK-01 详情，在线，综合 99')
+    expect(links[0]!.find('.sr-only').text()).toBe('查看 HK-01 详情，在线，综合 99，今日下行 0 B，上行 0 B')
     expect(links[0]!.find('.player-card').exists()).toBe(true)
     expect(links[0]!.find('.card-live-strip').exists()).toBe(true)
     // Only the visually hidden text names the link; the card text is hidden so it cannot contradict it.

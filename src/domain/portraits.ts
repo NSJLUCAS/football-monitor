@@ -9,14 +9,18 @@ const assets = import.meta.glob<string>('../assets/portraits/*.webp', {
 })
 type Preset = Pick<PortraitConfig, 'scale' | 'x' | 'y'>
 // Full-length figures framed as half-length shots: the head sits under the frame top and the torso fills the
-// art area, nudged right so raised arms stay clear of the rating.
+// art area, nudged right so raised arms stay clear of the rating. `city` is already a half-length figure.
 const entries: { id: string; label: string; preset: Preset }[] = [
   { id: 'arsenal', label: '红白跪地', preset: { scale: 2.2, x: 8, y: 52 } },
   { id: 'brazil', label: '黄衫庆祝', preset: { scale: 2.3, x: 6, y: 52 } },
   { id: 'argentina', label: '蓝白握拳', preset: { scale: 2.2, x: 14, y: 52 } },
-  { id: 'france', label: '蓝衫抱臂', preset: { scale: 2.3, x: 0, y: 55 } },
+  { id: 'city', label: '天蓝怒吼', preset: { scale: 1.45, x: 6, y: 18 } },
   { id: 'portugal', label: '红衫跃起', preset: { scale: 2.3, x: 0, y: 55 } },
 ]
+/** Removed built-in portraits and the one that took their place (2026-10-27: france → city). */
+const replaced: Record<string, string> = { france: 'city' }
+export const replacementPortrait = (id: unknown) =>
+  typeof id === 'string' ? builtinPortraits.find((p) => p.id === replaced[id]) : undefined
 export const builtinPortraits = entries.map((e) => ({
   ...e,
   src: assets[`../assets/portraits/${e.id}.webp`]!,

@@ -10,7 +10,7 @@ import {
   resolveTask,
   statusText,
 } from '../domain/carriers'
-import { rate } from '../domain/format'
+import { bytes, rate } from '../domain/format'
 import type { HistoryResponse, MonitorNode, NodeConfig } from '../domain/types'
 const props = defineProps<{
   node: MonitorNode
@@ -18,6 +18,7 @@ const props = defineProps<{
   history?: HistoryResponse
   unavailable?: boolean
   showCarriers: boolean
+  showTraffic?: boolean
 }>()
 const metrics = computed(() => (props.node.online ? props.node.metrics : null))
 // The first three Hub probes of this node, in Hub order (ascending task id). A probe takes the colour of
@@ -85,6 +86,18 @@ const bars = computed(() => {
       >
       <span class="strip-up"
         ><span class="sr-only">上传 </span><b aria-hidden="true">↑</b>{{ rate(metrics?.net_tx) }}</span
+      >
+    </div>
+    <!-- Hub-booked counters, so offline nodes keep today's figure. -->
+    <div
+      v-if="showTraffic"
+      class="strip-bar"
+      data-kind="today"
+      :title="`↓ ${bytes(node.day_rx)} · ↑ ${bytes(node.day_tx)}`"
+    >
+      <span class="strip-bar-label">今日流量</span><i class="strip-bar-leader" aria-hidden="true" /><span
+        class="strip-bar-value"
+        >{{ bytes(node.day_rx + node.day_tx) }}</span
       >
     </div>
     <template v-if="showCarriers">

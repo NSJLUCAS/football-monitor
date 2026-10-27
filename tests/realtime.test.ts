@@ -22,6 +22,56 @@ const tick = async () => {
 }
 afterEach(() => vi.useRealTimers())
 describe('realtime lifecycle', () => {
+  it('publishes a given first snapshot without refreshing identity, then refreshes as usual', async () => {
+    vi.useFakeTimers()
+    const socket = new FakeSocket(),
+      seen: string[] = [],
+      beforeRefresh = vi.fn(async () => true),
+      fetchNodes = vi.fn(async () => ({ nodes: [{ id: 1, name: 'polled' }] }))
+    const rt = new RealtimeController({
+      url: 'ws://localhost',
+      socket: () => socket,
+      initialNodes: Promise.resolve({ nodes: [{ id: 1, name: 'early' }] }),
+      beforeRefresh,
+      fetchNodes,
+      onNodes: (n) => seen.push(n[0]!.name),
+    })
+    rt.start()
+    await tick()
+    expect(seen).toEqual(['early'])
+    expect(beforeRefresh).not.toHaveBeenCalled()
+    expect(fetchNodes).not.toHaveBeenCalled()
+    socket.onclose?.()
+    await tick()
+    expect(beforeRefresh).toHaveBeenCalledTimes(1)
+    expect(seen).toEqual(['early', 'polled'])
+    rt.stop()
+  })
+  it('keeps waiting for the first snapshot when the socket fails before it arrives', async () => {
+    vi.useFakeTimers()
+    const socket = new FakeSocket(),
+      seen: string[] = [],
+      beforeRefresh = vi.fn(async () => true)
+    let early: (value: unknown) => void = () => {}
+    const rt = new RealtimeController({
+      url: 'ws://localhost',
+      socket: () => socket,
+      initialNodes: new Promise((r) => {
+        early = r
+      }),
+      beforeRefresh,
+      fetchNodes: async () => ({ nodes: [{ id: 1, name: 'polled' }] }),
+      onNodes: (n) => seen.push(n[0]!.name),
+    })
+    rt.start()
+    socket.onclose?.()
+    await tick()
+    early({ nodes: [{ id: 1, name: 'early' }] })
+    await tick()
+    expect(seen).toEqual(['early'])
+    expect(beforeRefresh).not.toHaveBeenCalled()
+    rt.stop()
+  })
   it('never lets an older slow WS decode replace a newer HTTP snapshot', async () => {
     vi.useFakeTimers()
     const socket = new FakeSocket(),

@@ -102,7 +102,7 @@ const style = computed(() => {
     :style="style"
     :aria-label="`${node.name} ${node.online ? '在线' : '离线'} 综合 ${score.overall ?? '无数据'}`"
   >
-    <img class="pc-face" :src="skin.image" alt="" draggable="false" />
+    <img class="pc-face" :src="skin.image" alt="" loading="lazy" decoding="async" draggable="false" />
     <div class="pc-art">
       <div class="pc-portrait">
         <PlayerPortrait

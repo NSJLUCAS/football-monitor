@@ -198,6 +198,13 @@ describe('node detail page', () => {
       expect(wrapper.find(`section#${id}`).exists()).toBe(true)
   })
 
+  it("shows today's traffic split and total in the billing panel", async () => {
+    const { wrapper } = await mountDetail()
+    const today = wrapper.get('.billing-today')
+    expect(today.find('strong').text()).toBe('↓ 6 GB · ↑ 3 GB')
+    expect(today.find('small').text()).toBe('合计 9 GB')
+  })
+
   it('drops the billing blocks when show_billing is off', async () => {
     const { wrapper } = await mountDetail((store) => {
       store.config = { ...store.config, show_billing: false }
@@ -205,6 +212,7 @@ describe('node detail page', () => {
     expect(wrapper.find('.billing-fee').exists()).toBe(false)
     expect(wrapper.find('.billing-expiry').exists()).toBe(false)
     expect(wrapper.find('.billing-traffic').exists()).toBe(true)
+    expect(wrapper.find('.billing-today').exists()).toBe(true)
   })
 
   it('drops the whole billing panel and its tab when billing and traffic are off', async () => {
@@ -235,7 +243,7 @@ describe('node detail page', () => {
 
   it('breaks the network score into three meters and keeps the resource readings', async () => {
     const { wrapper, get } = await mountDetail()
-    expect(get).toHaveBeenCalledWith(103, 24, 'ping', false)
+    expect(get).toHaveBeenCalledWith(103, 24, 'ping', false, true)
     const score = wrapper.find('#score')
     expect(score.findAll('[role="meter"]').map((m) => m.attributes('aria-label'))).toEqual([
       '延迟 评分',

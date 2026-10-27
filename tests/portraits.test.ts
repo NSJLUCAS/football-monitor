@@ -9,13 +9,7 @@ const builtin = (id: string) => builtinPortraits.find((p) => p.id === id)!
 
 describe('built-in portraits', () => {
   it('ships five portraits with a bundled image and a framing preset each', () => {
-    expect(builtinPortraits.map((p) => p.id)).toEqual([
-      'arsenal',
-      'brazil',
-      'argentina',
-      'france',
-      'portugal',
-    ])
+    expect(builtinPortraits.map((p) => p.id)).toEqual(['arsenal', 'brazil', 'argentina', 'city', 'portugal'])
     for (const p of builtinPortraits) {
       expect(p.src).toMatch(/portraits\/.+\.webp/)
       expect(p.label).toBeTruthy()
@@ -39,21 +33,26 @@ describe('resolvePortrait', () => {
     )
   })
   it('honours a chosen built-in portrait with the owner’s own framing', () => {
-    const chosen = { ...DEFAULT_PORTRAIT, builtin: 'france', scale: 2.2, y: 30 }
-    expect(resolvePortrait(chosen, 'brazil')).toMatchObject({ kind: 'builtin', id: 'france', config: chosen })
+    const chosen = { ...DEFAULT_PORTRAIT, builtin: 'city', scale: 2.2, y: 30 }
+    expect(resolvePortrait(chosen, 'brazil')).toMatchObject({ kind: 'builtin', id: 'city', config: chosen })
     expect(resolvePortrait({ ...DEFAULT_PORTRAIT, builtin: 'neutral' }, 'brazil')).toMatchObject({
       kind: 'neutral',
       src: '/athlete.svg',
     })
   })
   it('prefers a local preview, then the bound image', () => {
-    const bound = { ...DEFAULT_PORTRAIT, url: 'https://img.example.org/a.webp', builtin: 'france' }
+    const bound = { ...DEFAULT_PORTRAIT, url: 'https://img.example.org/a.webp', builtin: 'city' }
     expect(resolvePortrait(bound, 'brazil')).toMatchObject({ kind: 'custom', src: bound.url })
     expect(resolvePortrait(bound, 'brazil', 'blob:x')).toMatchObject({ kind: 'custom', src: 'blob:x' })
   })
 })
 
 describe('portrait config', () => {
+  it('moves a saved choice of the removed portrait to its replacement, with the new framing', () => {
+    const migrated = validPortrait({ builtin: 'france', scale: 2.3, x: 0, y: 55 })
+    expect(migrated).toMatchObject({ ...DEFAULT_PORTRAIT, ...builtin('city').preset, builtin: 'city' })
+    expect(validPortrait({ builtin: 'france' }, true).builtin).toBe('city')
+  })
   it('keeps known built-in ids and refuses unknown ones when saving', () => {
     expect(validPortrait({ builtin: 'argentina' }).builtin).toBe('argentina')
     expect(validPortrait({ builtin: 'neutral' }).builtin).toBe('neutral')
@@ -101,18 +100,18 @@ describe('PortraitEditor built-in picker', () => {
       'arsenal',
       'brazil',
       'argentina',
-      'france',
+      'city',
       'portugal',
       'neutral',
     ])
     expect(wrapper.find('.builtin-option[data-portrait="auto"]').attributes('aria-pressed')).toBe('true')
-    await wrapper.find('.builtin-option[data-portrait="france"]').trigger('click')
+    await wrapper.find('.builtin-option[data-portrait="city"]').trigger('click')
     expect(wrapper.emitted('update:modelValue')!.at(-1)).toEqual([
-      { ...DEFAULT_PORTRAIT, ...builtin('france').preset, builtin: 'france' },
+      { ...DEFAULT_PORTRAIT, ...builtin('city').preset, builtin: 'city' },
       3,
     ])
-    await wrapper.setProps({ modelValue: { ...DEFAULT_PORTRAIT, builtin: 'france' } })
-    expect(wrapper.find('.builtin-option[data-portrait="france"]').attributes('aria-pressed')).toBe('true')
+    await wrapper.setProps({ modelValue: { ...DEFAULT_PORTRAIT, builtin: 'city' } })
+    expect(wrapper.find('.builtin-option[data-portrait="city"]').attributes('aria-pressed')).toBe('true')
     await wrapper.find('.builtin-option[data-portrait="auto"]').trigger('click')
     expect(wrapper.emitted('update:modelValue')!.at(-1)).toEqual([undefined, 3])
   })

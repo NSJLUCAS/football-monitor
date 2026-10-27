@@ -271,6 +271,11 @@ const carrierTasks = computed(() =>
                   : '本周期不限流量'
               }}</small>
             </div>
+            <div v-if="store.config.show_traffic" class="billing-block billing-today panel">
+              <span>今日流量</span>
+              <strong>↓ {{ bytes(node.day_rx) }} · ↑ {{ bytes(node.day_tx) }}</strong>
+              <small>合计 {{ bytes(node.day_rx + node.day_tx) }}</small>
+            </div>
           </div>
         </section>
         <section

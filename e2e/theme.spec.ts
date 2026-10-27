@@ -44,12 +44,25 @@ async function serveSquad(page: Page) {
     socket.onClose(() => clearInterval(timer))
   })
 }
+/** Waits for the page-load fade of the cards to end; it moves and fades them while it runs. */
+const cardsSettled = (page: Page) =>
+  page.waitForFunction(
+    () =>
+      [...document.querySelectorAll('.live-card.card-intro')].every((c) =>
+        c.classList.contains('card-ready'),
+      ) &&
+      document
+        .getAnimations()
+        .every((a) => (a as CSSAnimation).animationName !== 'card-intro' || a.playState === 'finished'),
+  )
 /** Number of cards whose top edge matches the first card's. */
-const firstRowCount = (page: Page) =>
-  page.locator('.player-card').evaluateAll((cards) => {
+const firstRowCount = async (page: Page) => {
+  await cardsSettled(page)
+  return page.locator('.player-card').evaluateAll((cards) => {
     const top = cards[0]!.getBoundingClientRect().top
     return cards.filter((c) => Math.abs(c.getBoundingClientRect().top - top) < 1).length
   })
+}
 const noHorizontalOverflow = (page: Page) =>
   page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)
 async function saveSettings(page: Page) {
@@ -74,6 +87,8 @@ test('dashboard renders all six skins and fits desktop, tablet, mobile and 320px
   await saveSettings(page)
   await page.goto('/')
   await expect(page.locator('.player-card')).toHaveCount(10)
+  // Opening the page fades the first cards in.
+  await expect(page.locator('.live-card.card-intro')).toHaveCount(10)
   await expect(page.getByText('实时连接', { exact: true })).toBeVisible()
   await expect(page.locator('.card-grid')).toHaveAttribute('data-layout', 'comfortable')
   await page.keyboard.press('/')
@@ -261,6 +276,7 @@ for (const appearance of ['dark', 'light'] as const)
     expect(await page.evaluate(() => document.documentElement.classList.contains('dark'))).toBe(
       appearance === 'dark',
     )
+    await cardsSettled(page)
     const report = await new AxeBuilder({ page }).analyze()
     expect(report.violations.filter((v) => ['serious', 'critical'].includes(v.impact || ''))).toEqual([])
   })

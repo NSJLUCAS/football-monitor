@@ -3,7 +3,7 @@ import { finite, record } from './normalize'
 import { migrateTemplate } from './skins'
 import { providerOf } from './providers'
 import { parseRates } from './fleet'
-import { isBuiltinPortrait } from './portraits'
+import { isBuiltinPortrait, replacementPortrait } from './portraits'
 import type {
   ConfigPatch,
   GlobalConfig,
@@ -60,7 +60,9 @@ export function safeImageUrl(value: string): boolean {
   }
 }
 export function validPortrait(value: unknown, strict = false): PortraitConfig {
-  const p = record(value)
+  // A removed built-in portrait moves to its replacement, which brings its own framing.
+  const successor = replacementPortrait(record(value).builtin)
+  const p = successor ? { ...record(value), ...successor.preset, builtin: successor.id } : record(value)
   const bounded = (key: string, min: number, max: number, fallback: number) => {
     const v = p[key]
     if (v === undefined) return fallback

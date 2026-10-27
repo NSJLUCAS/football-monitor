@@ -359,6 +359,21 @@
   white-space: nowrap;
 }
 
+/* First cards of a page load: hidden until the face has loaded, then fade up in turn. Global motion
+   switches cancel the animation, which leaves a ready card simply visible. */
+.live-card.card-intro:not(.card-ready) {
+  opacity: 0;
+}
+.live-card.card-intro.card-ready {
+  animation: card-intro 0.4s ease-out var(--intro-delay, 0ms) both;
+}
+@keyframes card-intro {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
 @media (prefers-reduced-motion: no-preference) {
   :root[data-motion='true'] .live-card:hover .player-card.card-interactive {
     transform: translateY(-3px);

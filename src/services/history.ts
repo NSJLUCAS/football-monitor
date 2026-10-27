@@ -4,10 +4,17 @@ import { request } from './api'
 
 type Getter = (path: string, init?: RequestInit) => Promise<unknown>
 type Series = 'all' | 'metrics' | 'ping'
+interface Job {
+  key: string
+  run: () => void
+}
+const keyOf = (id: number, hours: number, series: Series) => `${id}/${hours}/${series}`
 export class HistoryRepository {
   private cache = new Map<string, { time: number; value: HistoryResponse }>()
   private pending = new Map<string, Promise<HistoryResponse>>()
-  private queue: (() => void)[] = []
+  private queue: Job[] = []
+  // Prefetch for cards nobody is looking at yet waits behind every other request.
+  private background: Job[] = []
   private active = 0
   private generation = 0
   private controllers = new Set<AbortController>()
@@ -25,12 +32,21 @@ export class HistoryRepository {
     this.pending.clear()
     for (const controller of this.controllers) controller.abort()
   }
-  get(id: number, hours: number, series: Series = 'all', force = false): Promise<HistoryResponse> {
-    const key = `${id}/${hours}/${series}`,
+  get(
+    id: number,
+    hours: number,
+    series: Series = 'all',
+    force = false,
+    background = false,
+  ): Promise<HistoryResponse> {
+    const key = keyOf(id, hours, series),
       cached = this.cache.get(key)
     if (!force && cached && this.now() - cached.time < 60000) return Promise.resolve(cached.value)
     const pending = this.pending.get(key)
-    if (pending) return pending
+    if (pending) {
+      if (!background) this.prioritize(id, hours, series)
+      return pending
+    }
     const generation = this.generation
     const promise = new Promise<HistoryResponse>((resolve, reject) => {
       const job = async () => {
@@ -60,7 +76,7 @@ export class HistoryRepository {
           this.pump()
         }
       }
-      this.queue.push(() => void job())
+      ;(background ? this.background : this.queue).push({ key, run: () => void job() })
       this.pump()
     }).finally(() => {
       if (this.pending.get(key) === promise) this.pending.delete(key)
@@ -68,7 +84,17 @@ export class HistoryRepository {
     this.pending.set(key, promise)
     return promise
   }
+  /** Moves a queued background request ahead, for a card that has come into view. */
+  prioritize(id: number, hours: number, series: Series = 'all') {
+    const key = keyOf(id, hours, series),
+      i = this.background.findIndex((job) => job.key === key)
+    if (i >= 0) this.queue.push(...this.background.splice(i, 1))
+  }
   private pump() {
-    while (this.active < 3 && this.queue.length) this.queue.shift()!()
+    while (this.active < 3) {
+      const job = this.queue.shift() ?? this.background.shift()
+      if (!job) break
+      job.run()
+    }
   }
 }

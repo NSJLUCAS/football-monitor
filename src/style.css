@@ -1596,7 +1596,8 @@ svg {
   .billing-block > strong {
     font-size: 18px;
   }
-  .billing-traffic {
+  .billing-traffic,
+  .billing-today {
     grid-column: 1 / -1;
   }
   .score-groups {

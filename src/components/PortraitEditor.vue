@@ -7,6 +7,7 @@ import { DEFAULT_PORTRAIT, safeImageUrl } from '../domain/config'
 import type { PortraitConfig } from '../domain/types'
 import { loadLocalImage, exportPortrait, downloadBlob, type LocalImage } from '../services/images'
 import { WorkerUploader } from '../services/upload'
+import { builtinPortraits, NEUTRAL_PORTRAIT, NEUTRAL_SRC } from '../domain/portraits'
 const props = defineProps<{ modelValue?: PortraitConfig; nodeId: number; endpoint: string }>()
 const emit = defineEmits<{
   'update:modelValue': [value: PortraitConfig | undefined, nodeId: number]
@@ -110,6 +111,23 @@ async function upload() {
     if (epoch === generation) busy.value = false
   }
 }
+const builtinOptions = [
+  { id: 'auto', label: '自动', src: '' },
+  ...builtinPortraits,
+  { id: NEUTRAL_PORTRAIT, label: '原创中性', src: NEUTRAL_SRC },
+]
+// Built-in art is used when no image is bound; "auto" rotates the five by node id.
+const selectedBuiltin = computed(() => (props.modelValue?.url ? null : (props.modelValue?.builtin ?? 'auto')))
+function chooseBuiltin(id: string) {
+  clearLocal()
+  error.value = ''
+  const preset = builtinPortraits.find((p) => p.id === id)?.preset
+  emit(
+    'update:modelValue',
+    id === 'auto' ? undefined : { ...DEFAULT_PORTRAIT, ...preset, builtin: id },
+    props.nodeId,
+  )
+}
 function urlInput(value: string | number) {
   const url = String(value).trim()
   error.value = url && !safeImageUrl(url) ? '仅接受公开 HTTPS 图片地址，不接受凭据或本地地址。' : ''
@@ -133,6 +151,24 @@ defineExpose({ reset })
 </script>
 <template>
   <section class="portrait-editor">
+    <div class="form-field">
+      <span class="form-label">内置立绘</span>
+      <div class="builtin-picker" role="group" aria-label="内置立绘">
+        <button
+          v-for="o in builtinOptions"
+          :key="o.id"
+          type="button"
+          class="builtin-option"
+          :data-portrait="o.id"
+          :aria-pressed="selectedBuiltin === o.id"
+          :title="o.label"
+          @click="chooseBuiltin(o.id)"
+        >
+          <img v-if="o.src" :src="o.src" alt="" draggable="false" /><span>{{ o.label }}</span>
+        </button>
+      </div>
+      <p>没有绑定图片时使用；“自动”按节点编号轮换五张内置立绘。</p>
+    </div>
     <div class="form-field">
       <label for="portrait-binding-mode">绑定的图片</label
       ><select id="portrait-binding-mode" v-model="bindingMode">

@@ -19,7 +19,9 @@
     "package": "node scripts/package.mjs",
     "package:check": "node scripts/verify-package.mjs",
     "licenses": "node scripts/licenses.mjs",
-    "cards": "node scripts/cards.mjs"
+    "cards": "node scripts/cards.mjs",
+    "icons": "node scripts/icons.mjs",
+    "portraits": "node scripts/portraits.mjs"
   },
   "dependencies": {
     "@lucide/vue": "^1.61.0",

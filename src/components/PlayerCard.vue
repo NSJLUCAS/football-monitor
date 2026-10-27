@@ -9,6 +9,7 @@ import { osBadge, providerOf, type BrandIcon } from '../domain/providers'
 import type { MonitorNode, TemplateId, ThemeConfig } from '../domain/types'
 import PlayerPortrait from './PlayerPortrait.vue'
 import { cardPortraitBox } from '../domain/portrait'
+import { autoPortrait } from '../domain/portraits'
 const props = withDefaults(
   defineProps<{
     node: MonitorNode
@@ -97,7 +98,11 @@ const style = computed(() => {
     <img class="pc-face" :src="skin.image" alt="" draggable="false" />
     <div class="pc-art">
       <div class="pc-portrait">
-        <PlayerPortrait :portrait="settings?.portrait" :preview="portraitPreview" />
+        <PlayerPortrait
+          :portrait="settings?.portrait"
+          :preview="portraitPreview"
+          :fallback="autoPortrait(node.id)"
+        />
       </div>
     </div>
     <div class="pc-text">

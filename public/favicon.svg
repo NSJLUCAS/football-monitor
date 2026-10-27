@@ -1,1 +1,9 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><circle cx="20" cy="20" r="18" fill="#b6e66b"/><path d="m20 11 8 6-3 9H15l-3-9Zm0-9v9m18 3-10 3M9 5l5 11M3 25l12 1m10 0 11 5m-16 7V26" fill="#0b1710" stroke="#0b1710" stroke-width="2"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
+  <!-- A pitch seen from above, on Monitor's 16-unit grid. One accent tone,
+       because a favicon sits on browser chrome the page does not pick. -->
+  <g fill="none" stroke="#ff7a1a" stroke-width="1.5">
+    <rect x="1.5" y="3.25" width="13" height="9.5" rx="1.5"/>
+    <path d="M8 3.25v9.5"/>
+    <circle cx="8" cy="8" r="2.1"/>
+  </g>
+</svg>

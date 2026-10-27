@@ -105,6 +105,8 @@ export interface PortraitConfig {
   hidden?: boolean
   /** Exported image already covers the whole bleed box. */
   box?: 'bleed'
+  /** A built-in portrait id, or `neutral` for the original figure; unset follows the automatic rotation. */
+  builtin?: string
 }
 /** VPS provider: a registry id, or `custom` with the owner's own name and HTTPS logo. */
 export interface ProviderConfig {

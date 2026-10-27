@@ -20,7 +20,7 @@
 - 可选 Cloudflare Access + R2 + Durable Object 上传 Worker，凭证与密钥不进入主题。
 - 桌面、平板、手机布局；键盘操作、减少动态效果、错误/空白/离线状态。
 
-金卡、周黑、开拓者、传奇卡面由站长设计并提供（2026-10-26）；银卡、铜卡由金卡调色生成；默认匿名运动员为本项目原创中性 SVG。不使用 EA、EA SPORTS FC 或 FUT.GG 的素材、商标、字标或字体，也没有真实球员肖像；FUT.GG 只作版式参考。本站与 EA 无隶属关系。用户应自行确认所用立绘图片的授权。
+金卡、周黑、开拓者、传奇卡面由站长设计并提供（2026-10-26）；银卡、铜卡由金卡调色生成；内置的 5 张默认立绘由站长提供（2026-10-27），是真实球员的插画，其中一张带球队与赞助商标志；它们不属于本项目的 MIT 授权，肖像与商标归各自权利人所有，详见 THIRD_PARTY_NOTICES。原创中性运动员 SVG 仍可在设置中选用。不使用 EA、EA SPORTS FC 或 FUT.GG 的素材、商标、字标或字体；FUT.GG 只作版式参考。本站与 EA 无隶属关系。用户应自行确认所用立绘图片的授权。
 
 ## 网络质量评分
 
@@ -65,6 +65,7 @@ npx playwright install chromium
 npm run test:e2e        # 独立模拟 API + 正式构建的浏览器测试
 npm run licenses        # 许可证清单与必要声明（含 sharp/libvips 开发依赖）
 npm run cards           # 仅更换卡面时：design/cards → src/assets/cards（sharp）
+npm run icons           # 改 public/favicon.svg 后：重新生成 180×180 apple-touch-icon.png
 npm run package        # 需已存在 dist/ 和 preview.png；Windows 请在 PowerShell 运行（需系统 tar.exe），Linux/macOS 用系统 tar
 npm run package:check  # 独立 gzip/tar/manifest/资源/限制校验
 ```
@@ -123,11 +124,13 @@ npm run package:check  # 独立 gzip/tar/manifest/资源/限制校验
 
 ## 自定义立绘
 
+「立绘编辑」顶部可选内置立绘：自动（按节点编号轮换 5 张）、5 张内置立绘之一，或原创中性运动员；选中后仍可用缩放、位移微调。绑定了图片 URL 时以图片为准，图片加载失败时回到该节点的内置立绘。新增内置立绘：把透明背景原图放入 `design/portraits/`，在 `scripts/portraits.mjs` 与 `src/domain/portraits.ts` 各加一项，运行 `npm run portraits`。
+
 基础流程：选择本地 PNG/JPG/WebP → 调缩放（65%–300%）/水平与垂直位置（±60%）/显示区域/适配方式 → 导出 1200×1500 WebP → 上传到你自己的 HTTPS 图片托管 → 绑定图片 URL → 保存到 Hub。
 
 本地文件仅临时预览，明确显示「未保存」。没有托管 URL 时，保存不会把本地图片冒充永久图片。临时对象地址和 Base64 不进入站点配置，也不使用 localStorage 存储站点图片。导出来自本地源，避免外部跨域图片污染 Canvas。
 
-限制：8 MiB / 24MP / 单边 10000px；实际内容签名、完整容器/图像块/扫描、PNG CRC 与浏览器解码都要通过。JPEG 限常见 8-bit baseline/progressive，WebP 限静态图片。缩放 65%–180%，X/Y ±30%；远程 URL 只允许公开 HTTPS，不接受用户凭据、本地/私有字面地址或危险协议。远程失效时使用原创占位图。SVG 只用于项目内置资产，用户上传仅接受 PNG/JPG/WebP。
+限制：8 MiB / 24MP / 单边 10000px；实际内容签名、完整容器/图像块/扫描、PNG CRC 与浏览器解码都要通过。JPEG 限常见 8-bit baseline/progressive，WebP 限静态图片。缩放 65%–300%，X/Y ±60%；远程 URL 只允许公开 HTTPS，不接受用户凭据、本地/私有字面地址或危险协议。远程失效时回到该节点的内置立绘。SVG 只用于项目内置资产，用户上传仅接受 PNG/JPG/WebP。
 
 预览和导出统一使用 800×1000 参考坐标，包括显示区域裁切；立绘可超出参考框，在四周各留 25% 的出血区内绘制（共 1200×1500，仍为 4:5），卡面画面区域四边柔和渐隐，不再硬切。导出图覆盖整个出血区，绑定后按出血区放置，构图与导出前一致。「绑定的图片」区分原图与已裁切导出图；导出 WebP 后会自动选择已裁切模式，再填写托管 URL 时自动恢复位置，避免重复裁切。增强上传模式也会自动重置位置。切换设置分类和节点会保留本地图草稿；离开设置会话或失去登录后释放。
 
@@ -155,7 +158,7 @@ Worker 在服务端验证 Access JWT 的签名、issuer、audience、必需时�
 
 - API 以 [核实的官方文档及源码版本](docs/references/upstream.md) 为基准。旧 Hub 缺少分组/公开备注等字段可降级，缺少 `expires_in` 显示原始到期日期，缺少 `last_seen_ago` 显示时长未知，不用浏览器时钟编造相对时间。旧 Hub 缺少主题 PUT 或 probes 时，相应能力不可用并显示错误。
 - 需要支持 ES2022、Canvas、原生 WebSocket 的现代浏览器。有 `DecompressionStream` 时请求 gzip，没有时请求文本。旧移动浏览器未进行实机验证。
-- 默认中性 SVG 立绘可正常使用，未分发参考图中的球员照片。卡面为站长提供的位图，版面位置由 `src/domain/skins.ts` 的百分比参数控制。
+- 没有设置立绘的节点按节点编号轮换 5 张内置立绘；也可在「立绘编辑」中固定某一张或改用原创中性 SVG。卡面为站长提供的位图，版面位置由 `src/domain/skins.ts` 的百分比参数控制。
 - 评分是展示用的网络质量估算，不是 SLA 或告警阈值；只统计探针后台的前三个测速任务，结果取决于测速点所在位置。
 - 浏览器自动化使用隔离模拟 API；没有真实测试 Hub，因此未证明实际安装、真实会话 Cookie、生产代理或旧版 Hub 的运行兼容。
 - 当前按需历史图使用 Hub 桶平均值，间断样本不连线；不会用平均丢包率冒充整个窗口丢包率。

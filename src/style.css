@@ -1932,6 +1932,7 @@ svg {
   min-width: 0;
 }
 .form-field > label,
+.form-field > .form-label,
 .range-field > label {
   font-size: 13px;
   font-weight: 600;
@@ -1999,6 +2000,38 @@ svg {
   width: 34px;
   height: 20px;
   min-height: 20px;
+}
+.builtin-picker {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+  gap: 6px;
+}
+.builtin-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 3px;
+  min-height: 92px;
+  padding: 4px 3px 5px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--subtle);
+  color: var(--muted);
+  font-size: 10px;
+  cursor: pointer;
+}
+.builtin-option img {
+  width: 100%;
+  height: 66px;
+  object-fit: cover;
+  object-position: top;
+}
+.builtin-option[aria-pressed='true'] {
+  border-color: var(--primary);
+  color: var(--foreground);
+  box-shadow: 0 0 0 1px var(--primary);
 }
 .file-drop {
   position: relative;

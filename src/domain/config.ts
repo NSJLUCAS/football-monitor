@@ -3,6 +3,7 @@ import { finite, record } from './normalize'
 import { migrateTemplate } from './skins'
 import { providerOf } from './providers'
 import { parseRates } from './fleet'
+import { isBuiltinPortrait } from './portraits'
 import type {
   ConfigPatch,
   GlobalConfig,
@@ -71,6 +72,8 @@ export function validPortrait(value: unknown, strict = false): PortraitConfig {
     if (strict) throw new ConfigError('图片地址必须是公开 HTTPS URL，不能包含凭据或本地地址')
   }
   if (strict && p.box !== undefined && p.box !== 'bleed') throw new ConfigError('立绘区域参数不合法')
+  if (strict && p.builtin !== undefined && !isBuiltinPortrait(p.builtin))
+    throw new ConfigError('内置立绘不存在')
   return {
     ...DEFAULT_PORTRAIT,
     ...(typeof p.url === 'string' && safeImageUrl(p.url) ? { url: p.url } : {}),
@@ -81,6 +84,7 @@ export function validPortrait(value: unknown, strict = false): PortraitConfig {
     area: p.area === 'upper' ? 'upper' : 'full',
     hidden: p.hidden === true,
     ...(p.box === 'bleed' ? { box: 'bleed' as const } : {}),
+    ...(isBuiltinPortrait(p.builtin) ? { builtin: p.builtin } : {}),
   }
 }
 function providerValue(value: unknown, strict: boolean): ProviderConfig | undefined {

@@ -7,14 +7,22 @@ import { DEFAULT_PORTRAIT, safeImageUrl } from '../domain/config'
 import type { PortraitConfig } from '../domain/types'
 import { loadLocalImage, exportPortrait, downloadBlob, type LocalImage } from '../services/images'
 import { WorkerUploader } from '../services/upload'
-import { builtinPortraits, NEUTRAL_PORTRAIT, NEUTRAL_SRC } from '../domain/portraits'
+import {
+  autoPortrait,
+  builtinPortraits,
+  NEUTRAL_PORTRAIT,
+  NEUTRAL_SRC,
+  resolvePortrait,
+} from '../domain/portraits'
 const props = defineProps<{ modelValue?: PortraitConfig; nodeId: number; endpoint: string }>()
 const emit = defineEmits<{
   'update:modelValue': [value: PortraitConfig | undefined, nodeId: number]
   preview: [value: string | undefined, nodeId: number]
   unsaved: [value: boolean, nodeId: number]
 }>()
-const config = computed(() => props.modelValue || DEFAULT_PORTRAIT)
+// The framing the card actually draws, including the automatic portrait's own preset.
+const resolved = computed(() => resolvePortrait(props.modelValue, autoPortrait(props.nodeId)))
+const config = computed(() => resolved.value.config)
 const local = shallowRef<LocalImage>(),
   error = ref(''),
   busy = ref(false),
@@ -23,7 +31,10 @@ const local = shallowRef<LocalImage>(),
   bindingMode = ref<'original' | 'processed'>('original')
 let generation = 0
 function update(patch: Partial<PortraitConfig>) {
-  emit('update:modelValue', { ...config.value, ...patch }, props.nodeId)
+  // Adjusting the automatic portrait pins it, so the new framing sticks instead of reverting to the preset.
+  const r = resolved.value,
+    builtin = r.kind === 'builtin' ? r.id : r.kind === 'neutral' ? NEUTRAL_PORTRAIT : undefined
+  emit('update:modelValue', { ...config.value, ...(builtin ? { builtin } : {}), ...patch }, props.nodeId)
   if (local.value && !localSaved.value) emit('unsaved', true, props.nodeId)
 }
 function clearLocal() {

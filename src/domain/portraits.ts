@@ -8,13 +8,14 @@ const assets = import.meta.glob<string>('../assets/portraits/*.webp', {
   eager: true,
 })
 type Preset = Pick<PortraitConfig, 'scale' | 'x' | 'y'>
-// Full-length figures: each preset zooms in so the head and torso fill the card's art area.
+// Full-length figures framed as half-length shots: the head sits under the frame top and the torso fills the
+// art area, nudged right so raised arms stay clear of the rating.
 const entries: { id: string; label: string; preset: Preset }[] = [
-  { id: 'arsenal', label: '红白跪地', preset: { scale: 1.4, x: 14, y: 36 } },
-  { id: 'brazil', label: '黄衫庆祝', preset: { scale: 1.55, x: 8, y: 40 } },
-  { id: 'argentina', label: '蓝白握拳', preset: { scale: 1.55, x: 8, y: 40 } },
-  { id: 'france', label: '蓝衫抱臂', preset: { scale: 1.55, x: 8, y: 40 } },
-  { id: 'portugal', label: '红衫跃起', preset: { scale: 1.55, x: 8, y: 40 } },
+  { id: 'arsenal', label: '红白跪地', preset: { scale: 2.2, x: 8, y: 52 } },
+  { id: 'brazil', label: '黄衫庆祝', preset: { scale: 2.3, x: 6, y: 52 } },
+  { id: 'argentina', label: '蓝白握拳', preset: { scale: 2.2, x: 14, y: 52 } },
+  { id: 'france', label: '蓝衫抱臂', preset: { scale: 2.3, x: 0, y: 55 } },
+  { id: 'portugal', label: '红衫跃起', preset: { scale: 2.3, x: 0, y: 55 } },
 ]
 export const builtinPortraits = entries.map((e) => ({
   ...e,

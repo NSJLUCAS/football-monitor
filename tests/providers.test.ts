@@ -14,6 +14,13 @@ describe('provider registry', () => {
       expect(providerOf(id)?.icon).toBeUndefined()
       expect(providerOf(id)?.short).toBe(text)
     }
+    for (const [id, file] of [
+      ['cloudcone', 'cloudcone.webp'],
+      ['bagevm', 'bagevm.webp'],
+      ['vmiss', 'vmiss.svg'],
+      ['akile', 'akile.webp'],
+    ] as const)
+      expect(providerOf(id)?.image).toContain(file)
     expect(new Set(providers.map((p) => p.id)).size).toBe(providers.length)
     expect(providerOf('custom')).toBeUndefined()
     expect(providerOf('nope')).toBeUndefined()

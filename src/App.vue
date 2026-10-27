@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch, watchEffect } from 'v
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 import { Sun, Moon, Settings2, ArrowUpRight, Search } from '@lucide/vue'
 import { useMonitorStore } from './stores/monitor'
+import manifest from '../theme.json'
 import { Button } from './components/ui/button'
 const store = useMonitorStore(),
   route = useRoute(),
@@ -131,7 +132,9 @@ const connectionText = computed(
   </header>
   <main id="main" class="page-container" tabindex="-1"><RouterView /></main>
   <footer class="site-footer">
-    <div class="footer-brand">FOOTBALL<strong>MONITOR</strong> <span>V1.0.0</span></div>
+    <div class="footer-brand">
+      FOOTBALL<strong>MONITOR</strong> <span>V{{ manifest.version }}</span>
+    </div>
     <p>每一次连接，都是主场。<span class="footer-divider">/</span> {{ store.me?.site_name || 'Monitor' }}</p>
   </footer>
 </template>

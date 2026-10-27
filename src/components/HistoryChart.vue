@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { computed, ref, useId } from 'vue'
-import { chartSegments, type ChartSeries, type ChartPoint } from '../domain/chart'
+import { chartSegments, type ChartSeries } from '../domain/chart'
 const props = withDefaults(
   defineProps<{ title: string; series: ChartSeries[]; unit: string; step?: number; maximum?: number }>(),
   { step: 60, maximum: undefined },
 )
 const titleId = useId(),
-  hover = ref<ChartPoint | null>(null)
+  hover = ref<{ ts: number; left: number; flip: boolean } | null>(null)
 const points = computed(() => props.series.flatMap((s) => s.points))
 const valid = computed(() => points.value.filter((p) => p.value !== null))
 const minTime = computed(() => Math.min(...points.value.map((p) => p.ts)))
@@ -35,79 +35,122 @@ const clock = (ts: number) =>
     hour: '2-digit',
     minute: '2-digit',
   })
+const nearest = <T extends { ts: number }>(list: T[], ts: number) =>
+  list.reduce<T | null>((a, p) => (!a || Math.abs(p.ts - ts) < Math.abs(a.ts - ts) ? p : a), null)
+// The viewBox keeps its aspect ratio, so a wide panel letterboxes it: map the pointer through that fit.
 function move(event: MouseEvent) {
-  const box = (event.currentTarget as SVGElement).getBoundingClientRect()
-  const ts =
-    minTime.value +
-    ((((event.clientX - box.left) / box.width) * 480 - 38) / 424) * (maxTime.value - minTime.value)
-  hover.value = valid.value.reduce<ChartPoint | null>(
-    (a, p) => (!a || Math.abs(p.ts - ts) < Math.abs(a.ts - ts) ? p : a),
-    null,
-  )
+  const box = (event.currentTarget as SVGElement).getBoundingClientRect(),
+    scale = Math.min(box.width / 480, box.height / 140) || 1,
+    offset = (box.width - 480 * scale) / 2,
+    vx = (event.clientX - box.left - offset) / scale
+  const point = nearest(valid.value, minTime.value + ((vx - 38) / 424) * (maxTime.value - minTime.value))
+  if (!point) return void (hover.value = null)
+  const left = offset + x(point.ts) * scale
+  hover.value = { ts: point.ts, left, flip: left > box.width * 0.6 }
 }
+// Every series at the hovered time; a series with no sample close by reads as missing.
+const readings = computed(() => {
+  const at = hover.value?.ts
+  if (at === undefined) return []
+  return props.series.map((s) => {
+    // The sample nearest the hovered time, failed ones included: a failure reads as missing.
+    const p = nearest(s.points, at),
+      value = p && Math.abs(p.ts - at) <= props.step * 1.7 ? p.value : null
+    return {
+      name: s.name,
+      color: s.color,
+      value: value === null ? '—' : short(value),
+      y: value === null ? null : y(value),
+    }
+  })
+})
 </script>
 <template>
   <section class="chart-panel panel">
     <h3 :id="titleId">{{ title }}</h3>
     <template v-if="valid.length">
-      <svg
-        class="chart-svg"
-        viewBox="0 0 480 140"
-        role="img"
-        :aria-labelledby="titleId"
-        @mousemove="move"
-        @mouseleave="hover = null"
-      >
-        <g v-for="tick in [0, 0.5, 1]" :key="tick">
-          <line
-            x1="38"
-            x2="462"
-            :y1="113 - tick * 102"
-            :y2="113 - tick * 102"
-            stroke="currentColor"
-            stroke-opacity=".12"
-            stroke-dasharray="3 4"
-          />
-          <text x="0" :y="116 - tick * 102">{{ short(top * tick) }}</text>
-        </g>
-        <g v-for="seriesItem in paths" :key="seriesItem.name">
-          <g v-for="(segment, index) in seriesItem.segments" :key="index">
-            <path
-              :d="segment.path"
-              fill="none"
-              :stroke="seriesItem.color"
-              stroke-width="1.8"
-              vector-effect="non-scaling-stroke"
+      <div class="chart-plot">
+        <svg
+          class="chart-svg"
+          viewBox="0 0 480 140"
+          role="img"
+          :aria-labelledby="titleId"
+          @mousemove="move"
+          @mouseleave="hover = null"
+        >
+          <g v-for="tick in [0, 0.5, 1]" :key="tick">
+            <line
+              x1="38"
+              x2="462"
+              :y1="113 - tick * 102"
+              :y2="113 - tick * 102"
+              stroke="currentColor"
+              stroke-opacity=".12"
+              stroke-dasharray="3 4"
             />
-            <circle
-              v-if="segment.points.length === 1"
-              :cx="x(segment.points[0]!.ts)"
-              :cy="y(segment.points[0]!.value)"
-              r="2"
-              :fill="seriesItem.color"
-            />
+            <text x="0" :y="116 - tick * 102">{{ short(top * tick) }}</text>
           </g>
-        </g>
-        <text x="38" y="137">{{ clock(minTime) }}</text>
-        <text x="462" y="137" text-anchor="end">{{ clock(maxTime) }}</text>
-        <g v-if="hover">
-          <line
-            :x1="x(hover.ts)"
-            :x2="x(hover.ts)"
-            y1="10"
-            y2="113"
-            stroke="currentColor"
-            stroke-opacity=".5"
-          />
-          <circle :cx="x(hover.ts)" :cy="y(hover.value)" r="3" fill="var(--primary)" />
-        </g>
-      </svg>
+          <g v-for="seriesItem in paths" :key="seriesItem.name">
+            <g v-for="(segment, index) in seriesItem.segments" :key="index">
+              <path
+                :d="segment.path"
+                fill="none"
+                :stroke="seriesItem.color"
+                stroke-width="1.8"
+                vector-effect="non-scaling-stroke"
+              />
+              <circle
+                v-if="segment.points.length === 1"
+                :cx="x(segment.points[0]!.ts)"
+                :cy="y(segment.points[0]!.value)"
+                r="2"
+                :fill="seriesItem.color"
+              />
+            </g>
+          </g>
+          <text x="38" y="137">{{ clock(minTime) }}</text>
+          <text x="462" y="137" text-anchor="end">{{ clock(maxTime) }}</text>
+          <g v-if="hover">
+            <line
+              :x1="x(hover.ts)"
+              :x2="x(hover.ts)"
+              y1="10"
+              y2="113"
+              stroke="currentColor"
+              stroke-opacity=".5"
+            />
+            <template v-for="r in readings" :key="r.name">
+              <circle
+                v-if="r.y !== null"
+                class="chart-hover-dot"
+                :cx="x(hover.ts)"
+                :cy="r.y"
+                r="3"
+                :fill="r.color"
+                stroke="var(--surface)"
+                stroke-width="1"
+              />
+            </template>
+          </g>
+        </svg>
+        <div
+          v-if="hover"
+          class="chart-tip"
+          :class="{ flip: hover.flip }"
+          :style="{ left: `${hover.left}px` }"
+          role="status"
+        >
+          <strong>{{ clock(hover.ts) }}</strong>
+          <span v-for="r in readings" :key="r.name"
+            ><i :style="{ background: r.color }" />{{ r.name }}<b>{{ r.value }}</b></span
+          >
+        </div>
+      </div>
       <div class="chart-legend">
         <span v-for="s in series" :key="s.name"
           ><i :style="{ background: s.color }" />{{ s.name }} · {{ latest(s) }}</span
         >
       </div>
-      <p v-if="hover" class="muted text-xs">{{ clock(hover.ts) }} · {{ short(hover.value || 0) }}</p>
       <details>
         <summary>查看数据与时间</summary>
         <div class="chart-table-wrap">

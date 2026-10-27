@@ -340,6 +340,11 @@
   height: 100%;
   object-fit: contain;
 }
+/* Logos keep the icon size whatever their own pixel size, so a crest never stretches. */
+.pc-crest:not([data-kind='flag']) img {
+  width: 5.6cqw;
+  height: 5.6cqw;
+}
 .pc-crest[data-kind='flag'] img {
   object-fit: cover;
 }
@@ -409,6 +414,12 @@
   color: var(--muted);
   font-size: 11px;
   text-overflow: ellipsis;
+}
+.strip-carrier-name span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .strip-carrier-name i {
   flex-shrink: 0;

@@ -330,9 +330,9 @@ describe('top bar search', () => {
     wrapper.unmount()
   })
 
-  it('shows the V1.0.0 footer and the text wordmark', async () => {
+  it('shows the theme version in the footer and the text wordmark', async () => {
     const { wrapper } = await mountApp('/settings')
-    expect(wrapper.find('.site-footer').text()).toContain('V1.0.0')
+    expect(wrapper.find('.site-footer').text()).toContain('V1.0.1')
     expect(wrapper.find('.brand').text().replace(/\s+/g, '')).toBe('FOOTBALLMONITOR')
     wrapper.unmount()
   })

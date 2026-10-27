@@ -18,6 +18,47 @@ describe('small accessible SVG charts', () => {
     expect(chart.text()).toContain('failed · —')
     expect(chart.text()).not.toContain('failed · 0ms')
   })
+  it('shows every series at the hovered time in a tooltip', async () => {
+    const chart = mount(HistoryChart, {
+      props: {
+        title: 'TCP',
+        unit: 'ms',
+        series: [
+          {
+            name: '广东移动',
+            color: '#0af',
+            points: [
+              { ts: 1000, value: 150 },
+              { ts: 1060, value: 170.4 },
+            ],
+          },
+          {
+            name: '广东联通',
+            color: '#f55',
+            points: [
+              { ts: 1000, value: 160 },
+              { ts: 1060, value: null },
+            ],
+          },
+        ],
+      },
+      attachTo: document.body,
+    })
+    const svg = chart.find('svg')
+    svg.element.getBoundingClientRect = () => ({ left: 0, top: 0, width: 480, height: 140 }) as DOMRect
+    // The right edge of the plot (x = 462) is the latest sample.
+    await svg.trigger('mousemove', { clientX: 462, clientY: 50 })
+    const tip = chart.find('.chart-tip')
+    expect(tip.exists()).toBe(true)
+    expect(tip.text()).toContain('广东移动')
+    expect(tip.text()).toContain('170.4ms')
+    expect(tip.text()).toContain('广东联通')
+    expect(tip.text()).toContain('—')
+    expect(chart.findAll('.chart-hover-dot')).toHaveLength(1)
+    await svg.trigger('mouseleave')
+    expect(chart.find('.chart-tip').exists()).toBe(false)
+    chart.unmount()
+  })
   it('does not join null values or offline gaps', () => {
     expect(
       chartSegments(

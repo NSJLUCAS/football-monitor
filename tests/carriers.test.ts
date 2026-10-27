@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { latencyColor, lineSkills, lossColor, probeBars, probeRegion } from '../src/domain/carriers'
+import {
+  carrierFromName,
+  latencyColor,
+  lineSkills,
+  lossColor,
+  probeBars,
+  probeRegion,
+} from '../src/domain/carriers'
 import type { HistoryResponse } from '../src/domain/types'
 
 describe('line skills', () => {
@@ -20,6 +27,14 @@ describe('line skills', () => {
       lineSkills({ carriers: { telecom: { line: '普通线路' }, unicom: { line: ' ' }, mobile: {} } }),
     ).toEqual([])
     expect(lineSkills(undefined)).toEqual([])
+  })
+  it('recognises the carrier a Hub probe is named after', () => {
+    expect(carrierFromName('广东移动')).toBe('mobile')
+    expect(carrierFromName('广东联通-V6')).toBe('unicom')
+    expect(carrierFromName('上海电信 TCP 目标')).toBe('telecom')
+    expect(carrierFromName('China Mobile ping')).toBe('mobile')
+    expect(carrierFromName('北京 TCP 目标')).toBeUndefined()
+    expect(carrierFromName(undefined)).toBeUndefined()
   })
   it('takes the first word of a Hub probe name as its region', () => {
     expect(probeRegion('上海 TCP 目标')).toBe('上海')

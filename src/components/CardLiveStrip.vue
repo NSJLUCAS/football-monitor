@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import {
+  carrierFromName,
   carriers,
   latencyColor,
   lossColor,
@@ -19,30 +20,41 @@ const props = defineProps<{
   showCarriers: boolean
 }>()
 const metrics = computed(() => (props.node.online ? props.node.metrics : null))
-// The first three Hub probes of this node, in Hub order (ascending task id), labelled by region.
+// The first three Hub probes of this node, in Hub order (ascending task id). A probe takes the colour of
+// the carrier it is mapped to or named after; probes named after distinct carriers are labelled by
+// carrier (“移动”), others by region, so long names such as “广东移动-V6” fit the column.
 const rows = computed(() => {
   const probes = props.history?.probes ?? {},
-    now = Date.now() / 1000
-  return Object.keys(probes)
-    .map(Number)
-    .sort((a, b) => a - b)
-    .slice(0, 3)
-    .map((taskId) => {
-      const name = probes[String(taskId)] ?? '',
-        carrier = carriers.find((c) => props.nodeConfig?.carriers?.[c.id]?.taskId === taskId),
-        r = resolveTask(taskId, props.history, now, props.unavailable),
-        // Offline nodes show no live latency, the same as their rates.
-        latency = props.node.online ? r.latency : null,
-        label = props.node.online ? statusText[r.status] : '节点离线'
-      return {
-        taskId,
-        region: probeRegion(name) || `#${taskId}`,
-        carrier: carrier?.id,
-        color: carrier?.color,
-        latency,
-        title: [carrier?.name, name, label].filter(Boolean).join(' · '),
-      }
-    })
+    now = Date.now() / 1000,
+    ids = Object.keys(probes)
+      .map(Number)
+      .sort((a, b) => a - b)
+      .slice(0, 3),
+    // The site owner's mapping wins over what the probe name suggests; colour and label follow the same one.
+    owned = ids.map(
+      (id) =>
+        carriers.find((c) => props.nodeConfig?.carriers?.[c.id]?.taskId === id) ??
+        carriers.find((c) => c.id === carrierFromName(probes[String(id)])),
+    ),
+    named = ids.map((id) => carrierFromName(probes[String(id)])),
+    byCarrier =
+      named.every(Boolean) && owned.every(Boolean) && new Set(owned.map((c) => c!.id)).size === ids.length
+  return ids.map((taskId, i) => {
+    const name = probes[String(taskId)] ?? '',
+      carrier = owned[i],
+      r = resolveTask(taskId, props.history, now, props.unavailable),
+      // Offline nodes show no live latency, the same as their rates.
+      latency = props.node.online ? r.latency : null,
+      label = props.node.online ? statusText[r.status] : '节点离线'
+    return {
+      taskId,
+      region: (byCarrier && carrier?.short) || probeRegion(name) || `#${taskId}`,
+      carrier: carrier?.id,
+      color: carrier?.color,
+      latency,
+      title: [carrier?.name, name, label].filter(Boolean).join(' · '),
+    }
+  })
 })
 const bars = computed(() => {
   const b = probeBars(
@@ -85,7 +97,8 @@ const bars = computed(() => {
           :data-carrier="p.carrier"
           :style="p.color ? { '--carrier': p.color } : undefined"
           :title="p.title"
-          ><span class="strip-carrier-name"><i aria-hidden="true" />{{ p.region }}</span
+          ><span class="strip-carrier-name"
+            ><i aria-hidden="true" /><span>{{ p.region }}</span></span
           ><span class="strip-latency"
             >{{ p.latency === null ? '—' : `${Number(p.latency.toFixed(1))}`
             }}<small v-if="p.latency !== null" class="strip-unit">ms</small></span

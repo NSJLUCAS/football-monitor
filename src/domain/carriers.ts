@@ -56,6 +56,14 @@ export function resolveCarrier(
   const { status, latency } = resolveTask(config.taskId, history, now, unavailable)
   return { status, latency, line: config.line || '未知', taskId: config.taskId, label: statusText[status] }
 }
+const NAMED: [RegExp, CarrierId][] = [
+  [/电信|telecom/i, 'telecom'],
+  [/联通|unicom/i, 'unicom'],
+  [/移动|mobile/i, 'mobile'],
+]
+/** The carrier a Hub probe is named after (“广东移动”, “上海电信 TCP”), if any. */
+export const carrierFromName = (name?: string): CarrierId | undefined =>
+  NAMED.find(([pattern]) => pattern.test(name ?? ''))?.[1]
 /** Region shown on the card strip: the first word of the Hub probe name. */
 export const probeRegion = (name?: string) => name?.trim().split(/\s+/)[0] ?? ''
 const HIDDEN_LINES = new Set(['未知', '普通线路'])

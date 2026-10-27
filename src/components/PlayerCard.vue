@@ -62,7 +62,14 @@ const crests = computed(() => {
     })
   else {
     const known = providerOf(provider?.id)
-    if (known) list.push({ kind: 'provider', title: known.name, icon: known.icon, text: known.short })
+    if (known)
+      list.push({
+        kind: 'provider',
+        title: known.name,
+        image: known.image,
+        icon: known.icon,
+        text: known.short,
+      })
   }
   if (os) list.push({ kind: 'os', title: os.name, icon: os.icon, text: os.short })
   return list

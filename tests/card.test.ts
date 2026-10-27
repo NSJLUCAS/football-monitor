@@ -158,6 +158,12 @@ describe('player card', () => {
       node_config: JSON.stringify({ version: 1, nodes: { '4': { provider: { id: 'aws' } } } }),
     })
     expect(card({ config: aws }).find('.pc-crest[data-kind="provider"]').text()).toBe('AWS')
+    const akile = parseConfig({
+      node_config: JSON.stringify({ version: 1, nodes: { '4': { provider: { id: 'akile' } } } }),
+    })
+    const crest = card({ config: akile }).find('.pc-crest[data-kind="provider"]')
+    expect(crest.attributes('title')).toBe('Akile')
+    expect(crest.find('img').attributes('src')).toContain('akile.webp')
     const bare = card({ node: { ...online, country: '', os: '' } })
     expect(bare.find('.pc-crests').exists()).toBe(false)
   })
@@ -250,6 +256,25 @@ describe('card live strip', () => {
       '北京 TCP 目标 · 探测成功',
     ])
     expect(strip.text()).not.toContain('东京')
+  })
+  it('colours probes named after a carrier and labels them by carrier', () => {
+    const named = (probes: Record<string, string>) =>
+      mount(CardLiveStrip, {
+        props: { node: online, history: { ...history, probes }, showCarriers: true },
+      }).findAll('.strip-carrier')
+    const items = named({ '1': '广东移动', '2': '广东联通', '3': '广东电信-V6' })
+    expect(items.map((s) => s.find('.strip-carrier-name').text())).toEqual(['移动', '联通', '电信'])
+    expect(items.map((s) => s.attributes('data-carrier'))).toEqual(['mobile', 'unicom', 'telecom'])
+    expect(items[0]!.attributes('style')).toContain('--carrier')
+    expect(items[2]!.attributes('title')).toContain('广东电信-V6')
+    // Two probes on one carrier keep their own names so they can be told apart.
+    const same = named({ '1': '上海电信', '2': '北京电信', '3': '广州移动' })
+    expect(same.map((s) => s.find('.strip-carrier-name').text())).toEqual([
+      '上海电信',
+      '北京电信',
+      '广州移动',
+    ])
+    expect(same.map((s) => s.attributes('data-carrier'))).toEqual(['telecom', 'telecom', 'mobile'])
   })
   it('adds latency and loss segment bars for the shown probes', () => {
     const strip = mount(CardLiveStrip, {

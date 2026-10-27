@@ -48,8 +48,17 @@ export interface Badge {
 }
 export interface Provider extends Badge {
   id: string
+  /** Bundled logo for brands Simple Icons lacks. */
+  image?: string
 }
 const mark = (icon: { path: string; hex: string }): BrandIcon => ({ path: icon.path, hex: icon.hex })
+// Logos taken from each provider's own site (src/assets/providers/), shown only to identify the provider.
+const logos = import.meta.glob<string>('../assets/providers/*.{webp,svg}', {
+  query: '?url&no-inline',
+  import: 'default',
+  eager: true,
+})
+const logo = (file: string) => logos[`../assets/providers/${file}`]
 
 /** VPS providers offered in node settings; `custom` (own name and logo) is handled by the config. */
 export const providers: Provider[] = [
@@ -76,6 +85,10 @@ export const providers: Provider[] = [
   { id: 'racknerd', name: 'RackNerd', short: 'RackNerd' },
   { id: 'bandwagon', name: '搬瓦工', short: '搬瓦工' },
   { id: 'dmit', name: 'DMIT', short: 'DMIT' },
+  { id: 'cloudcone', name: 'CloudCone', image: logo('cloudcone.webp') },
+  { id: 'bagevm', name: 'BageVM', image: logo('bagevm.webp') },
+  { id: 'vmiss', name: 'VMISS', image: logo('vmiss.svg') },
+  { id: 'akile', name: 'Akile', image: logo('akile.webp') },
 ]
 export const providerOf = (id: unknown) => providers.find((p) => p.id === id)
 

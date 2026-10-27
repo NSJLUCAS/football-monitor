@@ -78,6 +78,20 @@ describe('PlayerPortrait with built-in art', () => {
   })
 })
 
+describe('PortraitEditor on the automatic portrait', () => {
+  it('shows the automatic portrait framing and pins that portrait when adjusted', async () => {
+    const id = autoPortrait(3),
+      preset = builtin(id).preset
+    const wrapper = mount(PortraitEditor, { props: { nodeId: 3, endpoint: '' } })
+    expect(wrapper.find<HTMLInputElement>('#portrait-scale').element.value).toBe(String(preset.scale))
+    await wrapper.find('#portrait-scale').setValue('2.5')
+    expect(wrapper.emitted('update:modelValue')!.at(-1)).toEqual([
+      { ...DEFAULT_PORTRAIT, ...preset, scale: 2.5, builtin: id },
+      3,
+    ])
+  })
+})
+
 describe('PortraitEditor built-in picker', () => {
   it('offers automatic, the five portraits and the neutral figure', async () => {
     const wrapper = mount(PortraitEditor, { props: { nodeId: 3, endpoint: '' } })

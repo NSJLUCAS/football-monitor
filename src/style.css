@@ -1213,6 +1213,49 @@ svg {
 .chart-panel.wide {
   grid-column: 1/-1;
 }
+.chart-plot {
+  position: relative;
+}
+.chart-tip {
+  position: absolute;
+  top: 4px;
+  z-index: 2;
+  display: grid;
+  gap: 3px;
+  min-width: 132px;
+  margin-left: 12px;
+  padding: 7px 9px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+  box-shadow: 0 6px 18px rgb(0 0 0 / 0.25);
+  color: var(--foreground);
+  font-size: 11px;
+  pointer-events: none;
+  white-space: nowrap;
+}
+.chart-tip.flip {
+  transform: translateX(calc(-100% - 24px));
+}
+.chart-tip strong {
+  color: var(--muted);
+  font-weight: 600;
+}
+.chart-tip span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.chart-tip i {
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+}
+.chart-tip b {
+  margin-left: auto;
+  padding-left: 12px;
+  font-variant-numeric: tabular-nums;
+}
 .chart-svg {
   width: 100%;
   height: 140px;

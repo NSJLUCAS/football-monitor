@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick } from 'vue'
 import { flushPromises, mount } from '@vue/test-utils'
@@ -122,9 +123,51 @@ describe('player card', () => {
     expect(wrapper.attributes('aria-label')).toBe('HK-01 离线 综合 无数据')
   })
   it('shows a dash for online nodes without a score', () => {
-    const wrapper = card({ score: empty })
+    const wrapper = card({ score: empty, config: { ...parseConfig({}), motion: false } })
     expect(wrapper.classes()).not.toContain('card-offline')
     expect(wrapper.find('.pc-rating').text()).toBe('—')
+  })
+  it('spins the score digits while the score loads, then stops them on it, units last', async () => {
+    const wrapper = card({ score: empty })
+    const roll = () => wrapper.find('.pc-rating .pc-roll')
+    expect(wrapper.find('.pc-rating').classes()).toContain('pc-rating-roll')
+    expect(roll().attributes('data-phase')).toBe('spin')
+    expect(roll().attributes('aria-hidden')).toBe('true')
+    expect(roll().findAll('.pc-roll-digit')).toHaveLength(2)
+    // Screen readers get the dash while it spins, then the score.
+    expect(wrapper.find('.pc-rating .sr-only').text()).toBe('—')
+    await wrapper.setProps({ score })
+    expect(roll().attributes('data-phase')).toBe('stop')
+    expect(wrapper.find('.pc-rating .sr-only').text()).toBe('78')
+    const digits = roll().findAll('.pc-roll-digit')
+    expect(digits.map((d) => d.attributes('style'))).toEqual([
+      expect.stringMatching(/--d: 7;.*--n: 0/),
+      expect.stringMatching(/--d: 8;.*--n: 1/),
+    ])
+    await digits[1]!.find('.pc-roll-strip').trigger('animationend')
+    expect(wrapper.find('.pc-rating').classes()).not.toContain('pc-rating-roll')
+    expect(wrapper.find('.pc-rating').text()).toBe('78')
+    // Later changes show at once.
+    await wrapper.setProps({ score: { ...score, overall: 81 } })
+    expect(wrapper.find('.pc-rating').text()).toBe('81')
+  })
+  it('stops a single-digit score on one digit', async () => {
+    const wrapper = card({ score: empty })
+    await wrapper.setProps({ score: { ...score, overall: 7 } })
+    expect(wrapper.findAll('.pc-roll-digit').map((d) => d.attributes('style'))).toEqual([
+      expect.stringMatching(/--d: 7;.*--n: 0/),
+    ])
+  })
+  it('does not spin a score known at mount, an offline card or with motion off', async () => {
+    expect(card({}).find('.pc-roll').exists()).toBe(false)
+    const off = card({ node: offline, score: empty })
+    expect(off.find('.pc-roll').exists()).toBe(false)
+    const still = card({ score: empty, config: { ...parseConfig({}), motion: false } })
+    expect(still.find('.pc-roll').exists()).toBe(false)
+    expect(still.find('.pc-rating').text()).toBe('—')
+    await still.setProps({ score })
+    expect(still.find('.pc-roll').exists()).toBe(false)
+    expect(still.find('.pc-rating').text()).toBe('78')
   })
   it('shows flag, provider and OS crests at the bottom of every card size', () => {
     const debian = { ...online, os: 'Debian GNU/Linux 12 (bookworm)' }
@@ -304,6 +347,33 @@ describe('card live strip', () => {
     expect(loss.findAll('.strip-seg')).toHaveLength(10)
     const off = mount(CardLiveStrip, { props: { node: online, nodeConfig, history, showCarriers: false } })
     expect(off.find('.strip-bar').exists()).toBe(false)
+  })
+  it('sweeps the empty bars while the probes load, then fills them in once, on first arrival', async () => {
+    const strip = mount(CardLiveStrip, { props: { node: online, nodeConfig, showCarriers: true } })
+    const states = () =>
+      strip.findAll('.strip-bar[data-kind]:not([data-kind="today"])').map((b) => b.attributes('data-state'))
+    expect(states()).toEqual(['loading', 'loading'])
+    // Each segment knows its place, which staggers both animations from left to right.
+    expect(
+      strip.findAll('.strip-bar[data-kind="latency"] .strip-seg').map((s) => s.attributes('style')),
+    ).toEqual(Array.from({ length: 10 }, (_, i) => expect.stringContaining(`--i: ${i}`)))
+    await strip.setProps({ history })
+    expect(states()).toEqual(['fill', 'fill'])
+    // Later refreshes keep the state, so the fill does not play again.
+    await strip.setProps({ history: { ...history } })
+    expect(states()).toEqual(['fill', 'fill'])
+  })
+  it('neither sweeps nor fills when the probes were already loaded or failed to load', () => {
+    const loaded = mount(CardLiveStrip, { props: { node: online, nodeConfig, history, showCarriers: true } })
+    expect(loaded.find('.strip-bar[data-state]').exists()).toBe(false)
+    const failed = mount(CardLiveStrip, {
+      props: { node: online, nodeConfig, unavailable: true, showCarriers: true },
+    })
+    expect(failed.find('.strip-bar[data-state]').exists()).toBe(false)
+    // Motion switches stop the CSS animations; with the default values the bars show as they are.
+    const css = readFileSync('src/styles/cards.css', 'utf8')
+    expect(css).toMatch(/@property --strip-fill \{[^}]*initial-value: 1/)
+    expect(css).toMatch(/@property --strip-load \{[^}]*initial-value: 0/)
   })
   it('shows a single dash when the node has no Hub probes', () => {
     const strip = mount(CardLiveStrip, {

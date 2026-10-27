@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+import { nextTick } from 'vue'
 import { mount } from '@vue/test-utils'
 import HistoryChart from '../src/components/HistoryChart.vue'
 import { chartSegments } from '../src/domain/chart'
@@ -58,6 +59,50 @@ describe('small accessible SVG charts', () => {
     await svg.trigger('mouseleave')
     expect(chart.find('.chart-tip').exists()).toBe(false)
     chart.unmount()
+  })
+  it('draws at the width of its panel and the requested height, so a wide panel is filled', async () => {
+    let resize: (entries: { contentRect: { width: number } }[]) => void = () => {}
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        constructor(callback: typeof resize) {
+          resize = callback
+        }
+        observe() {}
+        disconnect() {}
+      },
+    )
+    // The plot appears only once history has loaded, after the chart itself has mounted.
+    const chart = mount(HistoryChart, {
+      props: { title: 'TCP', unit: 'ms', height: 200, series: [] },
+      attachTo: document.body,
+    })
+    await chart.setProps({
+      series: [
+        {
+          name: '广东移动',
+          color: '#0af',
+          points: [
+            { ts: 1000, value: 150 },
+            { ts: 1060, value: 170 },
+          ],
+        },
+      ],
+    })
+    resize([{ contentRect: { width: 1200 } }])
+    await nextTick()
+    const svg = chart.find('svg')
+    expect(svg.attributes('viewBox')).toBe('0 0 1200 200')
+    expect(svg.attributes('style')).toContain('height: 200px')
+    // The line runs to 18 units short of the right edge, where the latest time is labelled.
+    expect(chart.find('path').attributes('d')).toMatch(/L1182\.00,/)
+    expect(chart.findAll('text').at(-1)!.attributes('x')).toBe('1182')
+    // One unit is one pixel: the tooltip sits right under the pointer.
+    svg.element.getBoundingClientRect = () => ({ left: 0, top: 0, width: 1200, height: 200 }) as DOMRect
+    await svg.trigger('mousemove', { clientX: 1182, clientY: 50 })
+    expect(chart.find('.chart-tip').attributes('style')).toContain('left: 1182px')
+    chart.unmount()
+    vi.unstubAllGlobals()
   })
   it('does not join null values or offline gaps', () => {
     expect(

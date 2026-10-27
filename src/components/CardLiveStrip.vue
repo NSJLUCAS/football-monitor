@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import {
   carrierFromName,
   carriers,
@@ -21,6 +21,18 @@ const props = defineProps<{
   showTraffic?: boolean
 }>()
 const metrics = computed(() => (props.node.online ? props.node.metrics : null))
+// The bars sweep while the probes load, then fill in from the left the first time they arrive; probes
+// already loaded when the card mounts, refreshes and failed requests show as they are.
+const arrived = ref(false)
+watch(
+  () => props.history,
+  (now, before) => {
+    if (now && !before) arrived.value = true
+  },
+)
+const barState = computed(() =>
+  !props.history && !props.unavailable ? 'loading' : arrived.value ? 'fill' : undefined,
+)
 // The first three Hub probes of this node, in Hub order (ascending task id). A probe takes the colour of
 // the carrier it is mapped to or named after; probes named after distinct carriers are labelled by
 // carrier (“移动”), others by region, so long names such as “广东移动-V6” fit the column.
@@ -118,11 +130,15 @@ const bars = computed(() => {
           ></span
         >
       </div>
-      <div v-for="bar in bars" :key="bar.kind" class="strip-bar" :data-kind="bar.kind">
+      <div v-for="bar in bars" :key="bar.kind" class="strip-bar" :data-kind="bar.kind" :data-state="barState">
         <span class="strip-bar-label">{{ bar.label }}</span
         ><i class="strip-bar-leader" aria-hidden="true" /><span class="strip-bar-value">{{ bar.value }}</span>
         <span class="strip-segs" aria-hidden="true"
-          ><i v-for="(color, i) in bar.colors" :key="i" class="strip-seg" :style="{ background: color }"
+          ><i
+            v-for="(color, i) in bar.colors"
+            :key="i"
+            class="strip-seg"
+            :style="{ background: color, '--i': i }"
         /></span>
       </div>
     </template>

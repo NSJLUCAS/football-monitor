@@ -86,20 +86,21 @@ describe('monitor store 24-hour probe history', () => {
   beforeEach(() => setActivePinia(createPinia()))
   afterEach(() => vi.restoreAllMocks())
 
-  it('prefetches it once for every online node, whatever was scrolled into view', async () => {
+  it('prefetches the last hour for every node and the day for online nodes, whatever was scrolled into view', async () => {
     const store = useMonitorStore()
     const get = vi.spyOn(store.history, 'get').mockResolvedValue(quality(30))
     store.nodes = [node(1), node(2), node(3, false)]
     await flushPromises()
-    expect(get.mock.calls.map((c) => c[0]).sort()).toEqual([1, 2])
-    // The start-up prefetch runs in the background queue.
-    expect(get).toHaveBeenCalledWith(1, 24, 'ping', false, true)
+    // The strip's last hour is queued ahead of the day the score needs; both wait behind visible cards.
+    const calls = () => get.mock.calls.map((c) => `${c[0]}/${c[1]}/${c[4]}`).sort()
+    expect(calls()).toEqual(['1/1/2', '1/24/3', '2/1/2', '2/24/3', '3/1/2'])
     store.nodes = [node(1), node(2), node(3, false)]
     await flushPromises()
-    expect(get).toHaveBeenCalledTimes(2)
+    expect(get).toHaveBeenCalledTimes(5)
     store.nodes = [node(1), node(2), node(3)]
     await flushPromises()
-    expect(get.mock.calls.map((c) => c[0]).sort()).toEqual([1, 2, 3])
+    expect(calls()).toEqual(['1/1/2', '1/24/3', '2/1/2', '2/24/3', '3/1/2', '3/24/3'])
+    expect(store.ping[1]).toEqual(quality(30))
   })
 
   it('moves a queued prefetch ahead when its card asks for it', async () => {
@@ -110,7 +111,7 @@ describe('monitor store 24-hour probe history', () => {
     await flushPromises()
     expect(prioritize).not.toHaveBeenCalled()
     void store.loadQuality(1)
-    expect(prioritize).toHaveBeenCalledWith(1, 24, 'ping')
+    expect(prioritize).toHaveBeenCalledWith(1, 24, 'ping', 1)
   })
 
   it('refreshes at most every ten minutes unless forced', async () => {
@@ -129,7 +130,7 @@ describe('monitor store 24-hour probe history', () => {
     expect(get).toHaveBeenCalledTimes(2)
     await store.loadQuality(1, true)
     expect(get).toHaveBeenCalledTimes(3)
-    expect(get).toHaveBeenLastCalledWith(1, 24, 'ping', true, false)
+    expect(get).toHaveBeenLastCalledWith(1, 24, 'ping', true, 1)
   })
 
   it('waits for the history before assigning the first tier', async () => {

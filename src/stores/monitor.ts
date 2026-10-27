@@ -5,7 +5,7 @@ import { normalizeMe, record } from '../domain/normalize'
 import { networkScore, nextTier, type NodeScore, type Tier } from '../domain/score'
 import type { ConfigPatch, HistoryResponse, Me, MonitorNode } from '../domain/types'
 import { ApiError, request, saveConfig } from '../services/api'
-import { HistoryRepository } from '../services/history'
+import { HistoryRepository, type Priority } from '../services/history'
 import { RealtimeController, type ConnectionState } from '../services/realtime'
 
 export const useMonitorStore = defineStore('monitor', () => {
@@ -54,24 +54,32 @@ export const useMonitorStore = defineStore('monitor', () => {
     },
     { immediate: true },
   )
-  // Probe history is fetched once for every online node so scores do not depend on which cards were
-  // scrolled into view; visible cards refresh it every ten minutes.
-  const prefetched = new Set<number>()
+  // Probe history is fetched once for every node so neither the strips nor the scores depend on which
+  // cards were scrolled into view: the strip's last hour first, then the day an online node's score
+  // needs. Visible cards move their own requests ahead and refresh them.
+  const prefetched = new Set<number>(),
+    prefetchedPing = new Set<number>()
   watch(
     nodes,
     () => {
       if (closed.value) return
-      for (const node of nodes.value)
+      for (const node of nodes.value) {
+        if (!prefetchedPing.has(node.id)) {
+          prefetchedPing.add(node.id)
+          void loadPing(node.id, false, 2)
+        }
         if (node.online && !prefetched.has(node.id)) {
           prefetched.add(node.id)
-          void loadQuality(node.id, false, true)
+          void loadQuality(node.id, false, 3)
         }
+      }
     },
     { immediate: true },
   )
   function clearSensitiveState() {
     boot++
     prefetched.clear()
+    prefetchedPing.clear()
     tiers.value = {}
     nodes.value = []
     ping.value = {}
@@ -158,10 +166,10 @@ export const useMonitorStore = defineStore('monitor', () => {
     })
     if (!document.hidden) realtime.start()
   }
-  async function loadPing(id: number, force = false) {
+  async function loadPing(id: number, force = false, priority: Priority = 0) {
     const epoch = boot
     try {
-      const result = await history.get(id, 1, 'ping', force)
+      const result = await history.get(id, 1, 'ping', force, priority)
       if (epoch === boot && !closed.value) {
         ping.value[id] = result
         delete pingErrors.value[id]
@@ -171,16 +179,16 @@ export const useMonitorStore = defineStore('monitor', () => {
       else if (epoch === boot) pingErrors.value[id] = e instanceof Error ? e.message : '延迟数据不可用'
     }
   }
-  async function loadQuality(id: number, force = false, background = false) {
+  async function loadQuality(id: number, force = false, priority: Priority = 1) {
     if (!force && Date.now() - (qualityAt[id] ?? -Infinity) < 600000) {
       // A visible card moves its still-queued prefetch ahead.
-      if (!background) history.prioritize(id, 24, 'ping')
+      history.prioritize(id, 24, 'ping', priority)
       return
     }
     const epoch = boot
     qualityAt[id] = Date.now()
     try {
-      const result = await history.get(id, 24, 'ping', force, background)
+      const result = await history.get(id, 24, 'ping', force, priority)
       if (epoch === boot && !closed.value) {
         quality.value[id] = result
         delete qualityErrors.value[id]
@@ -227,6 +235,7 @@ export const useMonitorStore = defineStore('monitor', () => {
     mounted = false
     boot++
     prefetched.clear()
+    prefetchedPing.clear()
     qualityAt = {}
     realtime?.stop()
     history.clear()

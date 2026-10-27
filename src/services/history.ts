@@ -1,20 +1,30 @@
 import { normalizeHistory } from '../domain/normalize'
 import type { HistoryResponse } from '../domain/types'
-import { request } from './api'
+import { ApiError, request } from './api'
 
 type Getter = (path: string, init?: RequestInit) => Promise<unknown>
 type Series = 'all' | 'metrics' | 'ping'
+/**
+ * Lower starts first: 0 what a visible card or page shows now, 1 a visible card's score history,
+ * 2 prefetch of the strip's last hour, 3 prefetch of the day for scores.
+ */
+export type Priority = 0 | 1 | 2 | 3
 interface Job {
   key: string
+  priority: Priority
+  order: number
   run: () => void
 }
 const keyOf = (id: number, hours: number, series: Series) => `${id}/${hours}/${series}`
+// The Hub answers 503 at once when its four history slots are taken, by any visitor.
+const RETRIES = 3
+const retryDelay = (attempt: number) => 1500 * 2 ** attempt
 export class HistoryRepository {
   private cache = new Map<string, { time: number; value: HistoryResponse }>()
   private pending = new Map<string, Promise<HistoryResponse>>()
   private queue: Job[] = []
-  // Prefetch for cards nobody is looking at yet waits behind every other request.
-  private background: Job[] = []
+  private queued = 0
+  private scheduled = false
   private active = 0
   private generation = 0
   private controllers = new Set<AbortController>()
@@ -37,19 +47,19 @@ export class HistoryRepository {
     hours: number,
     series: Series = 'all',
     force = false,
-    background = false,
+    priority: Priority = 0,
   ): Promise<HistoryResponse> {
     const key = keyOf(id, hours, series),
       cached = this.cache.get(key)
     if (!force && cached && this.now() - cached.time < 60000) return Promise.resolve(cached.value)
     const pending = this.pending.get(key)
     if (pending) {
-      if (!background) this.prioritize(id, hours, series)
+      this.prioritize(id, hours, series, priority)
       return pending
     }
     const generation = this.generation
     const promise = new Promise<HistoryResponse>((resolve, reject) => {
-      const job = async () => {
+      const job = async (attempt: number) => {
         if (generation !== this.generation) {
           reject(new Error('历史查询已取消'))
           return
@@ -69,32 +79,49 @@ export class HistoryRepository {
           while (this.cache.size > this.capacity) this.cache.delete(this.cache.keys().next().value!)
           resolve(value)
         } catch (e) {
-          reject(e)
+          // A busy Hub is asked again shortly, keeping the request's place in line.
+          if (e instanceof ApiError && e.status === 503 && attempt < RETRIES)
+            setTimeout(() => this.enqueue(key, priority, () => void job(attempt + 1)), retryDelay(attempt))
+          else reject(e)
         } finally {
           this.controllers.delete(controller)
           this.active--
           this.pump()
         }
       }
-      ;(background ? this.background : this.queue).push({ key, run: () => void job() })
-      this.pump()
+      this.enqueue(key, priority, () => void job(0))
     }).finally(() => {
       if (this.pending.get(key) === promise) this.pending.delete(key)
     })
     this.pending.set(key, promise)
     return promise
   }
-  /** Moves a queued background request ahead, for a card that has come into view. */
-  prioritize(id: number, hours: number, series: Series = 'all') {
-    const key = keyOf(id, hours, series),
-      i = this.background.findIndex((job) => job.key === key)
-    if (i >= 0) this.queue.push(...this.background.splice(i, 1))
+  /** Moves a queued request up, for a card that has come into view; never down. */
+  prioritize(id: number, hours: number, series: Series = 'all', priority: Priority = 0) {
+    const job = this.queue.find((j) => j.key === keyOf(id, hours, series))
+    if (job && priority < job.priority) {
+      job.priority = priority
+      job.order = this.queued++
+    }
+  }
+  // Requests queued in one go (the start-up prefetch, a page of cards) start together on the next
+  // microtask, so priority decides the order rather than which was asked for first.
+  private enqueue(key: string, priority: Priority, run: () => void) {
+    this.queue.push({ key, priority, order: this.queued++, run })
+    if (this.scheduled) return
+    this.scheduled = true
+    queueMicrotask(() => {
+      this.scheduled = false
+      this.pump()
+    })
   }
   private pump() {
-    while (this.active < 3) {
-      const job = this.queue.shift() ?? this.background.shift()
-      if (!job) break
-      job.run()
+    while (this.active < 3 && this.queue.length) {
+      const next = this.queue.reduce((a, b) =>
+        a.priority < b.priority || (a.priority === b.priority && a.order < b.order) ? a : b,
+      )
+      this.queue.splice(this.queue.indexOf(next), 1)
+      next.run()
     }
   }
 }

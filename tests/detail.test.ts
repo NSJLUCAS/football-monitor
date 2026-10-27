@@ -202,6 +202,8 @@ describe('node detail page', () => {
     const { wrapper } = await mountDetail()
     const today = wrapper.get('.billing-today')
     expect(today.find('strong').text()).toBe('↓ 6 GB · ↑ 3 GB')
+    // Each direction stays on one line, so a narrow block breaks only between them.
+    expect(today.findAll('strong > .billing-today-part').map((p) => p.text())).toEqual(['↓ 6 GB', '↑ 3 GB'])
     expect(today.find('small').text()).toBe('合计 9 GB')
   })
 
@@ -243,7 +245,7 @@ describe('node detail page', () => {
 
   it('breaks the network score into three meters and keeps the resource readings', async () => {
     const { wrapper, get } = await mountDetail()
-    expect(get).toHaveBeenCalledWith(103, 24, 'ping', false, true)
+    expect(get).toHaveBeenCalledWith(103, 24, 'ping', false, 3)
     const score = wrapper.find('#score')
     expect(score.findAll('[role="meter"]').map((m) => m.attributes('aria-label'))).toEqual([
       '延迟 评分',

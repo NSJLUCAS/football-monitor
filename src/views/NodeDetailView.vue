@@ -273,7 +273,10 @@ const carrierTasks = computed(() =>
             </div>
             <div v-if="store.config.show_traffic" class="billing-block billing-today panel">
               <span>今日流量</span>
-              <strong>↓ {{ bytes(node.day_rx) }} · ↑ {{ bytes(node.day_tx) }}</strong>
+              <strong
+                ><span class="billing-today-part">↓ {{ bytes(node.day_rx) }}</span> ·
+                <span class="billing-today-part">↑ {{ bytes(node.day_tx) }}</span></strong
+              >
               <small>合计 {{ bytes(node.day_rx + node.day_tx) }}</small>
             </div>
           </div>
@@ -349,6 +352,7 @@ const carrierTasks = computed(() =>
             /><HistoryChart
               class="wide"
               title="TCP 延迟历史"
+              :height="200"
               :series="pingSeries"
               unit=" ms"
               :step="data?.step"

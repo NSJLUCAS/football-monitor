@@ -44,16 +44,22 @@ async function serveSquad(page: Page) {
     socket.onClose(() => clearInterval(timer))
   })
 }
-/** Waits for the page-load fade of the cards to end; it moves and fades them while it runs. */
+/** Waits for the page-load animations to end: the card fade, the score roll and the bar fill move or hide
+ *  what layout checks, screenshots and contrast checks look at. */
 const cardsSettled = (page: Page) =>
   page.waitForFunction(
     () =>
       [...document.querySelectorAll('.live-card.card-intro')].every((c) =>
         c.classList.contains('card-ready'),
       ) &&
+      !document.querySelector('.pc-roll') &&
       document
         .getAnimations()
-        .every((a) => (a as CSSAnimation).animationName !== 'card-intro' || a.playState === 'finished'),
+        .every(
+          (a) =>
+            !['card-intro', 'strip-fill'].includes((a as CSSAnimation).animationName) ||
+            a.playState === 'finished',
+        ),
   )
 /** Number of cards whose top edge matches the first card's. */
 const firstRowCount = async (page: Page) => {
@@ -127,6 +133,7 @@ test('dashboard renders all six skins and fits desktop, tablet, mobile and 320px
   await serveSquad(closeUp)
   await closeUp.goto('http://127.0.0.1:4173/')
   await expect(closeUp.locator('.player-card')).toHaveCount(10)
+  await cardsSettled(closeUp)
   for (const id of skinIds) {
     const card = closeUp.locator(`.player-card[data-skin="${id}"]`).first()
     await expect(card).toBeVisible()

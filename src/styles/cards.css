@@ -3,11 +3,13 @@
   --strip-down: #15803d;
   --strip-up: #2563eb;
   --strip-empty-seg: #dde0e7;
+  --strip-loading-seg: #b9bfca;
 }
 :root.dark {
   --strip-down: #4ade80;
   --strip-up: #60a5fa;
   --strip-empty-seg: #2f3440;
+  --strip-loading-seg: #4a5262;
 }
 
 .live-card {
@@ -114,6 +116,40 @@
   font-weight: 800;
   letter-spacing: -0.04em;
   line-height: 0.9;
+}
+/* While the first score loads the digits spin (units faster); when it arrives each spins one more turn
+   and stops on its value, units last. Motion switches stop the animation, leaving the strip on its value. */
+.pc-roll {
+  display: inline-flex;
+}
+.pc-roll-digit {
+  display: inline-block;
+  height: 0.9em;
+  overflow: hidden;
+}
+.pc-roll-strip {
+  display: flex;
+  flex-direction: column;
+  transform: translateY(calc((var(--d) + 10) * -0.9em));
+  animation: pc-roll calc(0.7s + var(--n) * 0.25s) cubic-bezier(0.2, 0.75, 0.25, 1) both;
+}
+.pc-roll-strip > span {
+  height: 0.9em;
+}
+@keyframes pc-roll {
+  from {
+    transform: translateY(0);
+  }
+}
+.pc-roll[data-phase='spin'] .pc-roll-strip {
+  transform: none;
+  animation: pc-spin calc(0.9s - var(--n) * 0.3s) linear infinite;
+}
+/* One turn is ten digits; the strip repeats them, so the loop is seamless. */
+@keyframes pc-spin {
+  to {
+    transform: translateY(-9em);
+  }
 }
 .card-offline .pc-rating {
   font-size: 11cqw;
@@ -484,6 +520,57 @@
 .strip-seg {
   height: 6px;
   border-radius: 1px;
+}
+/* Bar progress, 0 to 1. Motion switches stop the animations and leave these defaults: no loading
+   highlight, segments fully shown. */
+@property --strip-load {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: 0;
+}
+@property --strip-fill {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: 1;
+}
+/* While the probes load, the empty segments light up from the left, one per tenth, and start over. */
+.strip-bar[data-state='loading'] {
+  animation: strip-load 1.2s linear infinite;
+}
+.strip-bar[data-state='loading'] .strip-seg {
+  position: relative;
+}
+.strip-bar[data-state='loading'] .strip-seg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--strip-loading-seg);
+  opacity: clamp(0, calc(var(--strip-load, 0) * 10 - var(--i)), 1);
+}
+@keyframes strip-load {
+  0% {
+    --strip-load: 0;
+  }
+  85%,
+  100% {
+    --strip-load: 1;
+  }
+}
+/* The first time the probes arrive, the coloured segments light up from the left. */
+.strip-bar[data-state='fill'] {
+  animation: strip-fill 0.7s ease-out both;
+}
+.strip-bar[data-state='fill'] .strip-seg {
+  opacity: clamp(0, calc((var(--strip-fill, 1) * 13 - var(--i)) / 3), 1);
+}
+@keyframes strip-fill {
+  from {
+    --strip-fill: 0;
+  }
+  to {
+    --strip-fill: 1;
+  }
 }
 
 .skin-thumb {

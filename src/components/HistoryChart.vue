@@ -1,9 +1,16 @@
 <script setup lang="ts">
-import { computed, ref, useId } from 'vue'
+import { computed, ref, useId, watch } from 'vue'
 import { chartSegments, type ChartSeries } from '../domain/chart'
 const props = withDefaults(
-  defineProps<{ title: string; series: ChartSeries[]; unit: string; step?: number; maximum?: number }>(),
-  { step: 60, maximum: undefined },
+  defineProps<{
+    title: string
+    series: ChartSeries[]
+    unit: string
+    step?: number
+    maximum?: number
+    height?: number
+  }>(),
+  { step: 60, maximum: undefined, height: 140 },
 )
 const titleId = useId(),
   hover = ref<{ ts: number; left: number; flip: boolean } | null>(null)
@@ -12,8 +19,27 @@ const valid = computed(() => points.value.filter((p) => p.value !== null))
 const minTime = computed(() => Math.min(...points.value.map((p) => p.ts)))
 const maxTime = computed(() => Math.max(...points.value.map((p) => p.ts)))
 const top = computed(() => props.maximum || Math.max(1, ...valid.value.map((p) => p.value || 0)) * 1.1)
-const x = (ts: number) => 38 + ((ts - minTime.value) / (maxTime.value - minTime.value || 1)) * 424
-const y = (value: number | null) => 113 - ((value || 0) / top.value) * 102
+// Drawn at the panel's own width, one unit to a pixel, so a wide panel is filled and text keeps its size.
+const plot = ref<HTMLElement>(),
+  width = ref(480)
+// The plot exists only while there is history to draw, so it is measured whenever it appears.
+watch(plot, (element, _, onCleanup) => {
+  if (!element || typeof ResizeObserver !== 'function') return
+  const observer = new ResizeObserver(([entry]) => {
+    if (entry && entry.contentRect.width > 0) width.value = Math.round(entry.contentRect.width)
+  })
+  observer.observe(element)
+  onCleanup(() => observer.disconnect())
+})
+// Value labels on the left, time labels along the bottom.
+const LEFT = 50,
+  RIGHT = 18,
+  TOP = 11
+const right = computed(() => width.value - RIGHT),
+  bottom = computed(() => props.height - 27)
+const x = (ts: number) =>
+  LEFT + ((ts - minTime.value) / (maxTime.value - minTime.value || 1)) * (right.value - LEFT)
+const y = (value: number | null) => bottom.value - ((value || 0) / top.value) * (bottom.value - TOP)
 const paths = computed(() =>
   props.series.map((s) => ({
     ...s,
@@ -37,15 +63,16 @@ const clock = (ts: number) =>
   })
 const nearest = <T extends { ts: number }>(list: T[], ts: number) =>
   list.reduce<T | null>((a, p) => (!a || Math.abs(p.ts - ts) < Math.abs(a.ts - ts) ? p : a), null)
-// The viewBox keeps its aspect ratio, so a wide panel letterboxes it: map the pointer through that fit.
 function move(event: MouseEvent) {
   const box = (event.currentTarget as SVGElement).getBoundingClientRect(),
-    scale = Math.min(box.width / 480, box.height / 140) || 1,
-    offset = (box.width - 480 * scale) / 2,
-    vx = (event.clientX - box.left - offset) / scale
-  const point = nearest(valid.value, minTime.value + ((vx - 38) / 424) * (maxTime.value - minTime.value))
+    scale = box.width / width.value || 1,
+    vx = (event.clientX - box.left) / scale
+  const point = nearest(
+    valid.value,
+    minTime.value + ((vx - LEFT) / (right.value - LEFT)) * (maxTime.value - minTime.value),
+  )
   if (!point) return void (hover.value = null)
-  const left = offset + x(point.ts) * scale
+  const left = x(point.ts) * scale
   hover.value = { ts: point.ts, left, flip: left > box.width * 0.6 }
 }
 // Every series at the hovered time; a series with no sample close by reads as missing.
@@ -69,10 +96,11 @@ const readings = computed(() => {
   <section class="chart-panel panel">
     <h3 :id="titleId">{{ title }}</h3>
     <template v-if="valid.length">
-      <div class="chart-plot">
+      <div ref="plot" class="chart-plot">
         <svg
           class="chart-svg"
-          viewBox="0 0 480 140"
+          :viewBox="`0 0 ${width} ${height}`"
+          :style="{ height: `${height}px` }"
           role="img"
           :aria-labelledby="titleId"
           @mousemove="move"
@@ -80,15 +108,15 @@ const readings = computed(() => {
         >
           <g v-for="tick in [0, 0.5, 1]" :key="tick">
             <line
-              x1="38"
-              x2="462"
-              :y1="113 - tick * 102"
-              :y2="113 - tick * 102"
+              :x1="LEFT"
+              :x2="right"
+              :y1="bottom - tick * (bottom - TOP)"
+              :y2="bottom - tick * (bottom - TOP)"
               stroke="currentColor"
               stroke-opacity=".12"
               stroke-dasharray="3 4"
             />
-            <text x="0" :y="116 - tick * 102">{{ short(top * tick) }}</text>
+            <text x="0" :y="bottom + 3 - tick * (bottom - TOP)">{{ short(top * tick) }}</text>
           </g>
           <g v-for="seriesItem in paths" :key="seriesItem.name">
             <g v-for="(segment, index) in seriesItem.segments" :key="index">
@@ -108,14 +136,14 @@ const readings = computed(() => {
               />
             </g>
           </g>
-          <text x="38" y="137">{{ clock(minTime) }}</text>
-          <text x="462" y="137" text-anchor="end">{{ clock(maxTime) }}</text>
+          <text :x="LEFT" :y="height - 3">{{ clock(minTime) }}</text>
+          <text :x="right" :y="height - 3" text-anchor="end">{{ clock(maxTime) }}</text>
           <g v-if="hover">
             <line
               :x1="x(hover.ts)"
               :x2="x(hover.ts)"
-              y1="10"
-              y2="113"
+              :y1="TOP - 1"
+              :y2="bottom"
               stroke="currentColor"
               stroke-opacity=".5"
             />

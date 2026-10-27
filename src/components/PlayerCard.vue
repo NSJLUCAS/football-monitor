@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { STAT_KEYS, STAT_LABELS, statReadings, type NodeScore, type Tier } from '../domain/score'
 import { resolveSkin } from '../domain/skins'
 import { lineSkills } from '../domain/carriers'
@@ -33,6 +33,15 @@ const skin = computed(() =>
 const rating = computed(() =>
   !props.node.online ? 'OFF' : props.score.overall === null ? '—' : String(props.score.overall),
 )
+// While an online card waits for its first score the digits spin like a counter; when it arrives they
+// stop on it, units last. Scores known at mount and later changes show at once.
+const reduced = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
+const phase = ref<'spin' | 'stop' | null>(rating.value === '—' ? 'spin' : null)
+watch(rating, (now) => {
+  if (phase.value === 'spin') phase.value = /^\d+$/.test(now) ? 'stop' : now === '—' ? 'spin' : null
+})
+const rolling = computed(() => (props.config.motion && !reduced ? phase.value : null))
+const digits = computed(() => (rolling.value === 'spin' ? ['0', '0'] : [...rating.value]))
 const stats = computed(() => {
   const readings = statReadings(props.node, props.score)
   return STAT_KEYS.map((key) => ({ key, label: STAT_LABELS[key], ...readings[key] }))
@@ -114,7 +123,24 @@ const style = computed(() => {
     </div>
     <div class="pc-text">
       <div class="pc-meta">
-        <span class="pc-rating">{{ rating }}</span>
+        <span class="pc-rating" :class="{ 'pc-rating-roll': rolling }"
+          ><template v-if="rolling"
+            ><span class="sr-only">{{ rating }}</span
+            ><span class="pc-roll" :data-phase="rolling" aria-hidden="true"
+              ><span
+                v-for="(digit, i) in digits"
+                :key="i"
+                class="pc-roll-digit"
+                :style="{ '--d': digit, '--n': i }"
+                ><span
+                  class="pc-roll-strip"
+                  @animationend="rolling === 'stop' && i === digits.length - 1 && (phase = null)"
+                  ><span v-for="k in 20" :key="k">{{ (k - 1) % 10 }}</span></span
+                ></span
+              ></span
+            ></template
+          ><template v-else>{{ rating }}</template></span
+        >
         <span class="pc-position">{{ node.country || '—' }}</span>
       </div>
       <ul v-if="skills.length" class="pc-skills" aria-label="线路">

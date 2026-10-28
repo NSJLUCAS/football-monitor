@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, type Component } from 'vue'
+import { computed, ref, watch, type Component } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import {
   CalendarClock,
@@ -18,6 +18,7 @@ import { useMonitorStore } from '../stores/monitor'
 import { bytes, cycle, money, rate } from '../domain/format'
 import { expiringSoon, fleetSummary, parseRates } from '../domain/fleet'
 import { flagUrl } from '../domain/flags'
+import { nextTier, type Tier } from '../domain/score'
 import type { MonitorNode } from '../domain/types'
 import { Button } from '../components/ui/button'
 import LiveCard from '../components/LiveCard.vue'
@@ -68,12 +69,64 @@ const split = (text: string) => {
   const i = text.lastIndexOf(' ')
   return i < 0 ? [text, ''] : [text.slice(0, i), text.slice(i + 1)]
 }
-const usage = (used: number, total: number) => {
-  if (!total) return { value: '—', unit: '' }
-  const [value, unit] = split(bytes(used))
-  return { value: value!, unit: `${unit} / ${bytes(total)}` }
+interface Segment {
+  share: number
+  tone: string
 }
-const tiles = computed(() => {
+interface Tile {
+  label: string
+  icon: Component
+  value: string
+  unit?: string
+  tone?: string
+  note?: string
+  /** Shares of a thin bar under the value, 0 to 1. */
+  bar?: Segment[]
+  detail?: string
+  /** Recent rates, oldest first, drawn as a line in the empty space of the tile. */
+  spark?: { kind: 'up' | 'down'; values: number[] }
+}
+const usage = (used: number, total: number): Partial<Tile> => {
+  if (!total) return { value: '—', unit: '' }
+  const [value, unit] = split(bytes(used)),
+    share = used / total
+  return {
+    value: value!,
+    unit: `${unit} / ${bytes(total)}`,
+    // The same thresholds as the card's usage readings.
+    bar: [{ share, tone: share < 0.6 ? 'good' : share < 0.85 ? 'ok' : 'bad' }],
+    detail: `已用 ${Math.round(share * 100)}%`,
+  }
+}
+const TIER_NAMES: Record<Tier, string> = { gold: '金', silver: '银', bronze: '铜' }
+// Tier split of the scored nodes, best first, as on their cards.
+const tierSplit = computed((): Partial<Tile> => {
+  const counts: Record<Tier, number> = { gold: 0, silver: 0, bronze: 0 }
+  for (const n of grouped.value) {
+    const score = overall(n)
+    if (score !== null) counts[store.tiers[n.id] ?? nextTier(score)]++
+  }
+  const shown = (Object.keys(counts) as Tier[]).filter((t) => counts[t]),
+    total = shown.reduce((sum, t) => sum + counts[t], 0)
+  if (!total) return {}
+  return {
+    bar: shown.map((t) => ({ share: counts[t] / total, tone: t })),
+    detail: shown.map((t) => `${TIER_NAMES[t]} ${counts[t]}`).join(' · '),
+  }
+})
+// Fleet rates of the last updates in this group; a group switch starts over.
+const SAMPLES = 30
+const samples = ref<{ rx: number; tx: number }[]>([])
+watch(
+  () => store.updatedAt,
+  (at) => {
+    if (at === null) return
+    const { rx, tx } = summary.value
+    samples.value = [...samples.value, { rx, tx }].slice(-SAMPLES)
+  },
+)
+watch(group, () => (samples.value = []))
+const tiles = computed((): Tile[] => {
   const s = summary.value,
     [traffic, trafficUnit] = split(bytes(s.traffic)),
     [up, upUnit] = split(rate(s.tx)),
@@ -85,10 +138,14 @@ const tiles = computed(() => {
       value: String(s.online),
       unit: `/ ${s.total}`,
       tone: 'summary-online',
+      ...(s.total && {
+        bar: [{ share: s.online / s.total, tone: 'online' }],
+        detail: s.online === s.total ? '全部在线' : `离线 ${s.total - s.online} 台`,
+      }),
     },
-    { label: '平均评分', icon: Gauge, value: average.value, tone: 'summary-score' },
-    { label: '内存用量', icon: MemoryStick, ...usage(s.memUsed, s.memTotal) },
-    { label: '硬盘用量', icon: HardDrive, ...usage(s.diskUsed, s.diskTotal) },
+    { label: '平均评分', icon: Gauge, value: average.value, tone: 'summary-score', ...tierSplit.value },
+    { label: '内存用量', icon: MemoryStick, ...usage(s.memUsed, s.memTotal) } as Tile,
+    { label: '硬盘用量', icon: HardDrive, ...usage(s.diskUsed, s.diskTotal) } as Tile,
     ...(store.config.show_billing
       ? [
           {
@@ -96,15 +153,49 @@ const tiles = computed(() => {
             icon: Wallet,
             value: s.value === null ? '—' : `¥${s.value.toFixed(2)}`,
             unit: s.value === null ? '' : 'CNY',
+            detail: s.monthly === null ? '' : `折合每月 ¥${s.monthly.toFixed(2)}`,
             note: s.uncounted ? `${s.uncounted} 台缺到期日或汇率，未计入` : '',
           },
         ]
       : []),
-    { label: '累计流量', icon: Database, value: traffic!, unit: trafficUnit },
-    { label: '实时上行', icon: ChevronsUp, value: up!, unit: upUnit },
-    { label: '实时下行', icon: ChevronsDown, value: down!, unit: downUnit },
-  ] as { label: string; icon: Component; value: string; unit?: string; tone?: string; note?: string }[]
+    {
+      label: '累计流量',
+      icon: Database,
+      value: traffic!,
+      unit: trafficUnit,
+      detail: `今日 ${bytes(s.today)}`,
+    },
+    {
+      label: '实时上行',
+      icon: ChevronsUp,
+      value: up!,
+      unit: upUnit,
+      spark: { kind: 'up', values: samples.value.map((v) => v.tx) },
+    },
+    {
+      label: '实时下行',
+      icon: ChevronsDown,
+      value: down!,
+      unit: downUnit,
+      spark: { kind: 'down', values: samples.value.map((v) => v.rx) },
+    },
+  ]
 })
+// Sparkline in a 100 × 24 box: the newest sample at the right edge, spread between the lowest and the
+// highest sample; a steady rate runs through the middle.
+const SPARK_STEP = 100 / (SAMPLES - 1)
+function sparkPoints(values: number[]) {
+  const lo = Math.min(...values),
+    hi = Math.max(...values),
+    steady = hi - lo <= hi * 0.02,
+    pts = values.map((v, i) => {
+      const x = 100 - (values.length - 1 - i) * SPARK_STEP,
+        y = steady ? 12 : 22 - ((v - lo) / (hi - lo)) * 20
+      return `${Number(x.toFixed(1))},${Number(y.toFixed(1))}`
+    })
+  const first = pts[0]!.split(',')[0]
+  return { line: pts.join(' '), area: `${first},24 ${pts.join(' ')} 100,24` }
+}
 const daysText = (days: number | null) =>
   days === null ? '' : days < 0 ? `已过期 ${-days} 天` : days === 0 ? '今天' : `${days} 天`
 const level = (days: number | null) =>
@@ -159,10 +250,31 @@ const average = computed(() => {
         <div v-for="t in tiles" :key="t.label" class="summary-stat panel">
           <span class="summary-stat-label">{{ t.label }}</span>
           <component :is="t.icon" class="summary-icon" :size="18" aria-hidden="true" />
-          <strong class="summary-stat-value" :class="t.tone"
-            >{{ t.value }}<small v-if="t.unit">{{ t.unit }}</small></strong
+          <svg
+            v-if="t.spark && t.spark.values.length > 1"
+            class="summary-spark"
+            :data-kind="t.spark.kind"
+            viewBox="0 0 100 24"
+            preserveAspectRatio="none"
+            aria-hidden="true"
           >
-          <span v-if="t.note" class="summary-note">{{ t.note }}</span>
+            <polygon :points="sparkPoints(t.spark.values).area" />
+            <polyline :points="sparkPoints(t.spark.values).line" />
+          </svg>
+          <div class="summary-stat-body">
+            <strong class="summary-stat-value" :class="t.tone"
+              >{{ t.value }}<small v-if="t.unit">{{ t.unit }}</small></strong
+            >
+            <span v-if="t.bar" class="summary-bar" aria-hidden="true"
+              ><i
+                v-for="seg in t.bar"
+                :key="seg.tone"
+                :data-tone="seg.tone"
+                :style="{ width: `${seg.share * 100}%` }"
+            /></span>
+            <span v-if="t.detail" class="summary-detail">{{ t.detail }}</span>
+            <span v-if="t.note" class="summary-note">{{ t.note }}</span>
+          </div>
         </div>
       </section>
       <section v-if="store.config.show_billing" class="expiry-board panel" aria-labelledby="expiry-title">

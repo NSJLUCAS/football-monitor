@@ -211,6 +211,45 @@ describe('dashboard', () => {
     wrapper.unmount()
   })
 
+  it('adds a bar and a detail line under the tile values', async () => {
+    const { wrapper, store } = await mountDashboard()
+    const tile = (label: string) =>
+      wrapper.findAll('.summary-stat').find((s) => s.find('.summary-stat-label').text() === label)!
+    const widths = (label: string) =>
+      tile(label)
+        .findAll('.summary-bar i')
+        .map((i) => [i.attributes('data-tone'), i.attributes('style')])
+    const detail = (label: string) => tile(label).find('.summary-detail').text()
+    expect(widths('在线节点')).toEqual([['online', 'width: 75%;']])
+    expect(detail('在线节点')).toBe('离线 1 台')
+    // Scores 72, 80 and 74: one gold, two silver; the unscored offline node is left out.
+    expect(widths('平均评分')).toEqual([
+      ['gold', expect.stringContaining('width: 33.3')],
+      ['silver', expect.stringContaining('width: 66.6')],
+    ])
+    expect(detail('平均评分')).toBe('金 1 · 银 2')
+    // 118 of 300 bytes.
+    expect(widths('内存用量')).toEqual([['good', expect.stringContaining('width: 39.3')]])
+    expect(detail('内存用量')).toBe('已用 39%')
+    // ¥30 + $10 × 7.10 a month; 法兰克福 D has no price.
+    expect(detail('剩余价值')).toBe('折合每月 ¥101.00')
+    expect(detail('累计流量')).toBe('今日 0 B')
+    expect(tile('实时上行').find('.summary-spark').exists()).toBe(false)
+    store.nodes = fixtures()
+    store.updatedAt = 1
+    await flushPromises()
+    store.nodes = fixtures().map((n) => ({ ...n, metrics: n.metrics && { ...n.metrics, net_tx: 2048 } }))
+    store.updatedAt = 2
+    await flushPromises()
+    // Two updates draw a line through each rate; the newest point is the right end.
+    const line = tile('实时上行').find('.summary-spark polyline').attributes('points')!.split(' ')
+    expect(line).toHaveLength(2)
+    expect(line[1]!.split(',')[1]).toBe('2')
+    expect(tile('实时下行').find('.summary-spark polyline').exists()).toBe(true)
+    expect(tile('在线节点').find('.summary-spark').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
   it('ranks the machines that expire soonest, linking to their details', async () => {
     const { wrapper } = await mountDashboard()
     const rows = wrapper.findAll('.expiry-board li')

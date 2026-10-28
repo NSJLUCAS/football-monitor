@@ -114,6 +114,30 @@ describe('fleet summary', () => {
     expect(s.uncounted).toBe(2)
     expect(fleetSummary([node(5, { price: null })], rates).value).toBeNull()
   })
+  it("adds up today's traffic, offline nodes included", () => {
+    const s = fleetSummary(
+      [node(1, { day_rx: 3 * GB, day_tx: GB }), node(2, { day_rx: GB, day_tx: 0 }, null)],
+      parseRates(DEFAULT_RATES)!,
+    )
+    expect(s.today).toBe(5 * GB)
+  })
+  it('converts renewal prices to a monthly cost in yuan, expiry or not', () => {
+    const rates = { CNY: 1, USD: 7 }
+    const s = fleetSummary(
+      [
+        node(1),
+        node(2, { price: 120, billing_cycle: 'yearly', currency: 'USD', expires_in: null }),
+        node(3, { price: 0, currency: 'EUR' }),
+        node(4, { billing_cycle: 'lifetime' }),
+        node(5, { currency: 'EUR' }),
+        node(6, { price: null }),
+      ],
+      rates,
+    )
+    // ¥30 + $120 / 12 × 7; the free node adds nothing, unknown cycles and rates are left out.
+    expect(s.monthly).toBeCloseTo(100, 6)
+    expect(fleetSummary([node(6, { price: null })], rates).monthly).toBeNull()
+  })
 })
 
 describe('expiring soon', () => {

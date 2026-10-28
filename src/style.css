@@ -472,9 +472,83 @@ svg {
   white-space: nowrap;
 }
 .summary-note {
-  margin-top: -8px;
   color: var(--muted);
   font-size: 11px;
+}
+/* Under the value: a thin bar and a detail line; the rate tiles draw their recent line above it. */
+.summary-stat-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.summary-bar {
+  --tier-gold: #c99a06;
+  --tier-silver: #94a3b8;
+  --tier-bronze: #b4693a;
+  display: flex;
+  height: 5px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: var(--surface-raised);
+}
+.summary-bar i {
+  display: block;
+  height: 100%;
+}
+.summary-bar i + i {
+  border-left: 2px solid var(--surface);
+}
+.summary-bar [data-tone='online'],
+.summary-bar [data-tone='good'] {
+  background: var(--success);
+}
+.summary-bar [data-tone='ok'] {
+  background: var(--warning);
+}
+.summary-bar [data-tone='bad'] {
+  background: var(--danger);
+}
+.summary-bar [data-tone='gold'] {
+  background: var(--tier-gold);
+}
+.summary-bar [data-tone='silver'] {
+  background: var(--tier-silver);
+}
+.summary-bar [data-tone='bronze'] {
+  background: var(--tier-bronze);
+}
+.summary-detail {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.summary-spark {
+  flex: 1 1 0;
+  width: 100%;
+  min-height: 24px;
+  max-height: 72px;
+  overflow: visible;
+}
+.summary-spark[data-kind='up'] {
+  color: var(--upload);
+}
+.summary-spark[data-kind='down'] {
+  color: var(--download);
+}
+.summary-spark polyline {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+.summary-spark polygon {
+  fill: currentColor;
+  opacity: 0.12;
 }
 .summary-online {
   color: var(--success);

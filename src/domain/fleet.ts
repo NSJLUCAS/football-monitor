@@ -59,8 +59,12 @@ export interface FleetSummary {
   rx: number
   tx: number
   traffic: number
+  /** Today's Hub-booked traffic, offline nodes included. */
+  today: number
   /** Remaining value in yuan; null when no node could be priced. */
   value: number | null
+  /** Renewal prices as a monthly cost in yuan; null when no node could be priced. */
+  monthly: number | null
   /** Paid nodes whose value is unknown (no expiry, unknown cycle or no exchange rate). */
   uncounted: number
 }
@@ -75,11 +79,14 @@ export function fleetSummary(nodes: MonitorNode[], rates: Record<string, number>
     rx: 0,
     tx: 0,
     traffic: 0,
+    today: 0,
     value: null,
+    monthly: null,
     uncounted: 0,
   }
   for (const n of nodes) {
     s.traffic += n.total_rx + n.total_tx
+    s.today += n.day_rx + n.day_tx
     // Offline nodes keep their last report; it is not a live value.
     const m = n.online ? n.metrics : null
     if (n.online) s.online++
@@ -96,6 +103,9 @@ export function fleetSummary(nodes: MonitorNode[], rates: Record<string, number>
       rate = value && (value.amount === 0 ? 1 : rates[value.currency.toUpperCase()])
     if (value && rate) s.value = (s.value ?? 0) + value.amount * rate
     else s.uncounted++
+    const months = n.price === 0 ? 1 : cycleMonths(n.billing_cycle),
+      yuan = n.price === 0 ? 1 : rates[n.currency.toUpperCase()]
+    if (months && yuan) s.monthly = (s.monthly ?? 0) + (n.price / months) * yuan
   }
   return s
 }

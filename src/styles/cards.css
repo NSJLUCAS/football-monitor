@@ -423,10 +423,11 @@
 }
 
 /* Live strip: page theme tokens, readable in light and dark. */
+/* Every row reads “label ···· value” at one size; values are bold, labels muted. */
 .card-live-strip {
   container-type: inline-size;
   display: grid;
-  gap: 3px;
+  gap: 5px;
   padding: 7px 9px;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -443,9 +444,24 @@
   min-width: 0;
   white-space: nowrap;
 }
+.strip-speed .strip-bar-value {
+  display: flex;
+  gap: 8px;
+}
 .strip-speed b {
   font-weight: 700;
   margin-right: 2px;
+}
+/* Narrow cards drop the rate label so both rates keep the full width. */
+@container (max-width: 199px) {
+  .strip-speed .strip-bar-label,
+  .strip-speed .strip-bar-leader {
+    display: none;
+  }
+  .strip-speed .strip-bar-value {
+    grid-column: 1 / -1;
+    justify-content: space-between;
+  }
 }
 .strip-down b {
   color: var(--strip-down);
@@ -453,10 +469,11 @@
 .strip-up b {
   color: var(--strip-up);
 }
+/* Probes spread edge to edge, so the last one ends on the same right edge as the values above. */
 .strip-carriers {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 4px;
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
 }
 .strip-carrier {
   display: flex;
@@ -487,8 +504,23 @@
   background: var(--carrier, var(--muted));
 }
 .strip-latency {
-  font-size: 13px;
   font-weight: 700;
+  white-space: nowrap;
+}
+/* Wide enough strips put each probe on one line: “● 移动 416ms”. */
+@container (min-width: 270px) {
+  .strip-carrier {
+    flex-direction: row;
+    align-items: baseline;
+    gap: 5px;
+  }
+  .strip-carrier-name {
+    min-width: 0;
+    font-size: 12px;
+  }
+  .strip-latency {
+    flex-shrink: 0;
+  }
 }
 .strip-unit {
   margin-left: 1px;
@@ -499,13 +531,14 @@
 .strip-empty {
   color: var(--muted);
 }
-.strip-bar {
+.strip-line {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: auto minmax(8px, 1fr) auto;
   align-items: baseline;
   column-gap: 6px;
-  row-gap: 3px;
-  font-size: 11px;
+  row-gap: 4px;
+  min-width: 0;
+  white-space: nowrap;
 }
 .strip-bar-label {
   color: var(--muted);
@@ -516,6 +549,17 @@
 }
 .strip-bar-value {
   font-weight: 700;
+}
+/* Latency and loss sit side by side, as on the detail page, once each half has room for its bar. */
+.strip-bars {
+  display: grid;
+  gap: 5px;
+}
+@container (min-width: 190px) {
+  .strip-bars {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 12px;
+  }
 }
 .strip-segs {
   grid-column: 1 / -1;

@@ -92,18 +92,20 @@ const bars = computed(() => {
 </script>
 <template>
   <div class="card-live-strip">
-    <div class="strip-row strip-speed">
-      <span class="strip-down"
-        ><span class="sr-only">下载 </span><b aria-hidden="true">↓</b>{{ rate(metrics?.net_rx) }}</span
-      >
-      <span class="strip-up"
-        ><span class="sr-only">上传 </span><b aria-hidden="true">↑</b>{{ rate(metrics?.net_tx) }}</span
+    <div class="strip-line strip-speed">
+      <span class="strip-bar-label">速率</span><i class="strip-bar-leader" aria-hidden="true" /><span
+        class="strip-bar-value"
+        ><span class="strip-down"
+          ><span class="sr-only">下载 </span><b aria-hidden="true">↓</b>{{ rate(metrics?.net_rx) }}</span
+        ><span class="strip-up"
+          ><span class="sr-only">上传 </span><b aria-hidden="true">↑</b>{{ rate(metrics?.net_tx) }}</span
+        ></span
       >
     </div>
     <!-- Hub-booked counters, so offline nodes keep today's figure. -->
     <div
       v-if="showTraffic"
-      class="strip-bar"
+      class="strip-line strip-bar"
       data-kind="today"
       :title="`↓ ${bytes(node.day_rx)} · ↑ ${bytes(node.day_tx)}`"
     >
@@ -130,16 +132,26 @@ const bars = computed(() => {
           ></span
         >
       </div>
-      <div v-for="bar in bars" :key="bar.kind" class="strip-bar" :data-kind="bar.kind" :data-state="barState">
-        <span class="strip-bar-label">{{ bar.label }}</span
-        ><i class="strip-bar-leader" aria-hidden="true" /><span class="strip-bar-value">{{ bar.value }}</span>
-        <span class="strip-segs" aria-hidden="true"
-          ><i
-            v-for="(color, i) in bar.colors"
-            :key="i"
-            class="strip-seg"
-            :style="{ background: color, '--i': i }"
-        /></span>
+      <div class="strip-bars">
+        <div
+          v-for="bar in bars"
+          :key="bar.kind"
+          class="strip-line strip-bar"
+          :data-kind="bar.kind"
+          :data-state="barState"
+        >
+          <span class="strip-bar-label">{{ bar.label }}</span
+          ><i class="strip-bar-leader" aria-hidden="true" /><span class="strip-bar-value">{{
+            bar.value
+          }}</span>
+          <span class="strip-segs" aria-hidden="true"
+            ><i
+              v-for="(color, i) in bar.colors"
+              :key="i"
+              class="strip-seg"
+              :style="{ background: color, '--i': i }"
+          /></span>
+        </div>
       </div>
     </template>
   </div>

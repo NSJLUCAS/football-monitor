@@ -3,7 +3,7 @@
   "short": "football-monitor",
   "description": "原创足球球星卡极简探针主题 · 你的服务器，你的主场",
   "version": "1.0.3",
-  "author": "Football Monitor contributors",
+  "author": "NSJLUCAS",
   "url": "https://github.com/NSJLUCAS/football-monitor",
   "config": [
     { "type": "title", "label": "球星卡与外观" },

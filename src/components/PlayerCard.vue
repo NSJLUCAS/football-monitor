@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { STAT_KEYS, STAT_LABELS, statReadings, type NodeScore, type Tier } from '../domain/score'
-import { resolveSkin } from '../domain/skins'
+import { nodeTemplate, resolveSkin } from '../domain/skins'
 import { lineSkills } from '../domain/carriers'
 import { flagUrl } from '../domain/flags'
 import { countryName } from '../domain/format'
@@ -25,10 +25,7 @@ const props = withDefaults(
 )
 const settings = computed(() => props.config.nodes[String(props.node.id)])
 const skin = computed(() =>
-  resolveSkin(
-    props.templateOverride ?? settings.value?.template ?? props.config.default_template,
-    props.tier,
-  ),
+  resolveSkin(props.templateOverride ?? nodeTemplate(props.config, props.node.id), props.tier),
 )
 const rating = computed(() =>
   !props.node.online ? 'OFF' : props.score.overall === null ? '—' : String(props.score.overall),
@@ -107,6 +104,8 @@ const style = computed(() => {
     class="player-card"
     :class="{ 'card-offline': !node.online, 'card-interactive': interactive }"
     :data-skin="skin.id"
+    :data-tone="skin.tone"
+    :data-badge="skin.badge"
     :data-size="size"
     :style="style"
     :aria-label="`${node.name} ${node.online ? '在线' : '离线'} 综合 ${score.overall ?? '无数据'}`"

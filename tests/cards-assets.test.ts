@@ -3,7 +3,25 @@ import { readFileSync, statSync } from 'node:fs'
 import sharp from 'sharp'
 import { describe, expect, it } from 'vitest'
 
-const ids = ['gold', 'silver', 'bronze', 'weekly-black', 'pioneer', 'legend']
+const ids = [
+  'gold',
+  'silver',
+  'bronze',
+  'weekly-black',
+  'pioneer',
+  'legend',
+  'galaxy',
+  'shatter',
+  'toty-xi',
+  'neon',
+  'splash',
+  'lapis',
+  'neon-city',
+  'emerald',
+  'toty-orbit',
+  'prism',
+  'glitch',
+]
 const file = (id: string) => `src/assets/cards/${id}.webp`
 const frames = () =>
   JSON.parse(readFileSync('src/assets/cards/frames.json', 'utf8')) as Record<

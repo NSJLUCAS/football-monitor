@@ -18,7 +18,7 @@ import {
 import type { HistoryResponse } from '../domain/types'
 import { emptyScore, nextTier, type Tier } from '../domain/score'
 import { carriers, resolveCarrier } from '../domain/carriers'
-import { skinOf } from '../domain/skins'
+import { nodeTemplate, skinOf } from '../domain/skins'
 import type { ChartSeries } from '../domain/chart'
 import { ApiError } from '../services/api'
 import { Button } from '../components/ui/button'
@@ -120,7 +120,7 @@ const live = computed(() => (node.value?.online ? node.value.metrics : null))
 const tierNames: Record<Tier, string> = { gold: '金卡', silver: '银卡', bronze: '铜卡' }
 const tierLabel = computed(() => {
   if (!node.value) return ''
-  const template = config.value.nodes[node.value.id]?.template ?? config.value.default_template
+  const template = nodeTemplate(config.value, node.value.id)
   return template === 'auto'
     ? `${tierNames[tier.value]} · 卡面自动（按评分）`
     : `${tierNames[tier.value]} · 卡面固定为${skinOf(template).name}`

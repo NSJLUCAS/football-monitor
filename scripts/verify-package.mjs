@@ -191,7 +191,25 @@ function parseTar(bytes) {
   assert(ended, 'tar 流缺少完整结尾')
   return entries
 }
-const CARD_FACES = ['bronze', 'gold', 'legend', 'pioneer', 'silver', 'weekly-black']
+const CARD_FACES = [
+  'bronze',
+  'emerald',
+  'galaxy',
+  'glitch',
+  'gold',
+  'lapis',
+  'legend',
+  'neon',
+  'neon-city',
+  'pioneer',
+  'prism',
+  'shatter',
+  'silver',
+  'splash',
+  'toty-orbit',
+  'toty-xi',
+  'weekly-black',
+]
 export function verifyArchive(path, mode) {
   const compressed = readFileSync(path)
   assert(compressed.length <= 32 * MiB, '压缩包超过 32 MiB')

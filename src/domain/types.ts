@@ -88,7 +88,24 @@ export interface HistoryResponse {
   loss: Record<string, number>
   step: number
 }
-export type SkinId = 'gold' | 'silver' | 'bronze' | 'weekly-black' | 'pioneer' | 'legend'
+export type SkinId =
+  | 'gold'
+  | 'silver'
+  | 'bronze'
+  | 'weekly-black'
+  | 'pioneer'
+  | 'legend'
+  | 'galaxy'
+  | 'shatter'
+  | 'toty-xi'
+  | 'neon'
+  | 'splash'
+  | 'lapis'
+  | 'neon-city'
+  | 'emerald'
+  | 'toty-orbit'
+  | 'prism'
+  | 'glitch'
 export type TemplateId = SkinId | 'auto'
 export type CarrierId = 'telecom' | 'unicom' | 'mobile'
 export interface CarrierConfig {

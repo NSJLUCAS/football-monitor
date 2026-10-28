@@ -81,6 +81,8 @@
   left: var(--portrait-left);
   width: var(--portrait-width);
   height: var(--portrait-height);
+  /* The bleed box is right-aligned, so its left edge sits inside the art area: fade it, never clip hard. */
+  mask-image: linear-gradient(to right, transparent, #000 14%);
 }
 .pc-portrait .portrait-layer {
   position: absolute;
@@ -199,14 +201,19 @@
   text-shadow: none;
   white-space: nowrap;
 }
-.player-card[data-skin='weekly-black'] .pc-skill {
+.player-card[data-badge='gold'] .pc-skill {
   --skill-fill: linear-gradient(160deg, #2c2619, #0b0a07 70%);
   --skill-rim: linear-gradient(160deg, #f7dc8a, #b3842c 55%, #f0cc6c);
   --skill-ink: #f3cf6b;
 }
-.player-card[data-skin='pioneer'] .pc-skill {
+.player-card[data-badge='pioneer'] .pc-skill {
   --skill-fill: linear-gradient(160deg, #8a4fd0, #5a2a96 55%, #3a1468);
   --skill-rim: linear-gradient(160deg, #ffffff, #d9c8f6 55%, #f4eefc);
+  --skill-ink: #ffffff;
+}
+.player-card[data-badge='green'] .pc-skill {
+  --skill-fill: linear-gradient(160deg, #157a5c, #0b4a37 55%, #06281c);
+  --skill-rim: linear-gradient(160deg, #ffffff, #b8f5dc 55%, #e6fbf2);
   --skill-ink: #ffffff;
 }
 .player-card[data-skin='legend'] .pc-skill {
@@ -306,8 +313,7 @@
   --grade-ok: #b45309;
   --grade-bad: #b91c1c;
 }
-.player-card[data-skin='weekly-black'] .pc-stats,
-.player-card[data-skin='pioneer'] .pc-stats {
+.player-card[data-tone='dark'] .pc-stats {
   --grade-good: #4ade80;
   --grade-ok: #facc15;
   --grade-bad: #f87171;

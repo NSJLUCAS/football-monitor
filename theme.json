@@ -19,7 +19,18 @@
         { "value": "bronze", "label": "铜卡" },
         { "value": "weekly-black", "label": "周黑" },
         { "value": "pioneer", "label": "开拓者" },
-        { "value": "legend", "label": "传奇" }
+        { "value": "legend", "label": "传奇" },
+        { "value": "galaxy", "label": "星河" },
+        { "value": "shatter", "label": "碎焰" },
+        { "value": "toty-xi", "label": "年度最佳" },
+        { "value": "neon", "label": "霓虹" },
+        { "value": "splash", "label": "幻彩" },
+        { "value": "lapis", "label": "青金" },
+        { "value": "neon-city", "label": "霓虹城" },
+        { "value": "emerald", "label": "翡翠" },
+        { "value": "toty-orbit", "label": "星环" },
+        { "value": "prism", "label": "棱镜" },
+        { "value": "glitch", "label": "故障" }
       ]
     },
     {

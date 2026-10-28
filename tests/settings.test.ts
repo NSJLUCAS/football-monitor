@@ -43,15 +43,16 @@ describe('settings permission boundary', () => {
 })
 
 describe('TemplatePicker', () => {
-  it('renders auto plus six skins, and an extra inherit option for nodes', async () => {
+  it('renders auto plus every skin, and an extra inherit option for nodes', async () => {
     const { mount } = await import('@vue/test-utils')
     const { default: TemplatePicker } = await import('../src/components/TemplatePicker.vue')
     const global = mount(TemplatePicker, { props: { modelValue: 'auto' } })
-    expect(global.findAll('button')).toHaveLength(7)
+    expect(global.findAll('button')).toHaveLength(18)
     expect(global.find('[aria-label="选择自动（按评分）"]').exists()).toBe(true)
-    expect(global.findAll('img.skin-thumb')).toHaveLength(9)
+    expect(global.find('[aria-label="选择星环"]').exists()).toBe(true)
+    expect(global.findAll('img.skin-thumb')).toHaveLength(20)
     const node = mount(TemplatePicker, { props: { inherit: true } })
-    expect(node.findAll('button')).toHaveLength(8)
+    expect(node.findAll('button')).toHaveLength(19)
     expect(node.text()).toContain('继承全局卡面')
   })
   it('emits the skin id when a skin is chosen', async () => {

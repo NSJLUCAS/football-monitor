@@ -1,12 +1,13 @@
 // Normalises the site owner's card sources (design/cards) into uniform 640x860 runtime assets.
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readdirSync, writeFileSync } from 'node:fs'
 import sharp from 'sharp'
 
 const W = 640,
   H = 860,
   CARD_H = 840,
   TOP = 10
-const src = (id) => `design/cards/${id}.webp`
+const sources = readdirSync('design/cards')
+const src = (id) => `design/cards/${sources.find((f) => f.replace(/\.(webp|png)$/, '') === id)}`
 const out = (name) => `src/assets/cards/${name}.webp`
 const webp = { quality: 82, alphaQuality: 90, effort: 6 }
 
@@ -80,5 +81,20 @@ await emit('bronze', await recolour(grey, (s) => s.linear([1.0, 0.62, 0.36], [0,
 await emit('weekly-black', await normalise('weekly-black'))
 await emit('pioneer', await normalise('pioneer'), { ...webp, quality: 76 }) // over 150 KiB at quality 82
 await emit('legend', await normalise('legend'))
+// Special faces supplied by the site owner on 2026-10-28 (D041).
+for (const id of [
+  'galaxy',
+  'shatter',
+  'toty-xi',
+  'neon',
+  'splash',
+  'lapis',
+  'neon-city',
+  'emerald',
+  'toty-orbit',
+  'prism',
+  'glitch',
+])
+  await emit(id, await normalise(id), id === 'lapis' ? { ...webp, quality: 64 } : webp) // lapis is over 150 KiB at quality 82
 writeFileSync('src/assets/cards/frames.json', JSON.stringify(frames, null, 2) + '\n')
 console.log(frames)

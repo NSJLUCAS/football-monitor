@@ -1,15 +1,59 @@
 import { describe, expect, it } from 'vitest'
 import frames from '../src/assets/cards/frames.json'
 import manifest from '../theme.json'
-import { isTemplate, migrateTemplate, resolveSkin, skinOf, skins } from '../src/domain/skins'
+import { parseConfig } from '../src/domain/config'
+import { isTemplate, migrateTemplate, nodeTemplate, resolveSkin, skinOf, skins } from '../src/domain/skins'
 
-const ids = ['gold', 'silver', 'bronze', 'weekly-black', 'pioneer', 'legend']
+const ids = [
+  'gold',
+  'silver',
+  'bronze',
+  'weekly-black',
+  'pioneer',
+  'legend',
+  'galaxy',
+  'shatter',
+  'toty-xi',
+  'neon',
+  'splash',
+  'lapis',
+  'neon-city',
+  'emerald',
+  'toty-orbit',
+  'prism',
+  'glitch',
+]
 
 describe('skin registry', () => {
-  it('registers the six skins in order with images and frames from frames.json', () => {
+  it('registers every skin in order with images and frames from frames.json', () => {
     expect(skins.map((s) => s.id)).toEqual(ids)
-    expect(skins.map((s) => s.name)).toEqual(['金卡', '银卡', '铜卡', '周黑', '开拓者', '传奇'])
-    expect(skins.map((s) => s.kind)).toEqual(['tier', 'tier', 'tier', 'special', 'special', 'special'])
+    expect(skins.map((s) => s.name)).toEqual([
+      '金卡',
+      '银卡',
+      '铜卡',
+      '周黑',
+      '开拓者',
+      '传奇',
+      '星河',
+      '碎焰',
+      '年度最佳',
+      '霓虹',
+      '幻彩',
+      '青金',
+      '霓虹城',
+      '翡翠',
+      '星环',
+      '棱镜',
+      '故障',
+    ])
+    expect(skins.map((s) => s.kind)).toEqual(['tier', 'tier', 'tier', ...Array(14).fill('special')])
+    expect(skins.filter((s) => s.tone === 'light').map((s) => s.id)).toEqual([
+      'gold',
+      'silver',
+      'bronze',
+      'legend',
+    ])
+    for (const skin of skins) expect(skin.tone === 'dark', skin.id).toBe(skin.badge !== undefined)
     for (const skin of skins) {
       expect(skin.image).toBeTruthy()
       expect(skin.frame).toEqual(frames[skin.id])
@@ -71,5 +115,24 @@ describe('legacy template migration', () => {
       for (const scope of ['global', 'node'] as const) expect(migrateTemplate(id, scope)).toBe(id)
     for (const bad of ['deleted', 42, undefined, null, {}])
       for (const scope of ['global', 'node'] as const) expect(migrateTemplate(bad, scope)).toBeUndefined()
+  })
+})
+
+describe('theme preview showcase', () => {
+  const preview = 'football-monitor.monitor-themes.pages.dev'
+  it('rotates every face by node id on the theme preview site, whose demo hub has no settings', () => {
+    const empty = parseConfig({})
+    expect(skins.map((_, i) => nodeTemplate(empty, i + 1, preview))).toEqual(skins.map((s) => s.id))
+    expect(nodeTemplate(empty, skins.length + 1, preview)).toBe('gold')
+  })
+  it('keeps saved templates and leaves every other host on the configured default', () => {
+    expect(nodeTemplate(parseConfig({}), 1, 'tz.example.com')).toBe('auto')
+    expect(nodeTemplate(parseConfig({}), 1, 'monitor-themes.pages.dev.example.com')).toBe('auto')
+    expect(nodeTemplate(parseConfig({ default_template: 'legend' }), 1, preview)).toBe('legend')
+    const node = parseConfig({
+      node_config: JSON.stringify({ version: 1, nodes: { 2: { template: 'lapis' } } }),
+    })
+    expect(nodeTemplate(node, 2, preview)).toBe('lapis')
+    expect(nodeTemplate(node, 2, 'tz.example.com')).toBe('lapis')
   })
 })

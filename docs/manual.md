@@ -1,6 +1,6 @@
 # Football Monitor
 
-**你的服务器，你的主场。** 为极简探针 Monitor 构建的第三方足球球星卡主题。Vue 3 静态 SPA，当前版本 `1.0.6`。源码与发布：<https://github.com/NSJLUCAS/football-monitor>。
+**你的服务器，你的主场。** 为极简探针 Monitor 构建的第三方足球球星卡主题。Vue 3 静态 SPA，当前版本 `1.0.7`。源码与发布：<https://github.com/NSJLUCAS/football-monitor>。
 
 ![首页：本地模拟 API 的视觉验收](docs/screenshots/dashboard-1440.png)
 
@@ -82,7 +82,7 @@ npm run package:check  # 独立 gzip/tar/manifest/资源/限制校验
 | `football-monitor.tar.gz` | 根部为 `football-monitor/` 目录                 | 人工解压得到完整主题目录，放入 Hub 的 `--themes` 目录；不要上传给后台安装器                   |
 | `SHA256SUMS.txt`          | 两个包的 SHA-256                                | `sha256sum -c SHA256SUMS.txt` 校验下载                                                        |
 
-两包包含相同构建文件，`short` 均为 `football-monitor`。`theme.json` 的 `url` 指向本仓库，`version` 与 release 标签一致（`v1.0.6` 对 `1.0.6`）。
+两包包含相同构建文件，`short` 均为 `football-monitor`。`theme.json` 的 `url` 指向本仓库，`version` 与 release 标签一致（`v1.0.7` 对 `1.0.7`）。
 
 三种安装方式：
 

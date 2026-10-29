@@ -1,6 +1,8 @@
 import { defineConfig, devices } from '@playwright/test'
 export default defineConfig({
   testDir: './e2e',
+  // The cover is rendered on demand by `npm run cover` (playwright.cover.config.ts).
+  testIgnore: 'cover.spec.ts',
   fullyParallel: false,
   workers: 1,
   timeout: 30000,

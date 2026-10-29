@@ -45,8 +45,8 @@ jobs:
           done
           exit 1
       - run: npm run test:e2e
-      - name: Keep the reviewed preview image
-        # The browser tests re-shoot preview.png and screenshots; the package ships the committed preview.
+      - name: Keep the reviewed screenshots
+        # The browser tests re-shoot the docs screenshots; the package ships the committed cover (npm run cover).
         run: git checkout -- preview.png docs/screenshots
       - run: npm run package
       - run: npm run package:check

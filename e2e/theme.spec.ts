@@ -101,11 +101,6 @@ test('dashboard renders all six skins and fits desktop, tablet, mobile and 320px
   await expect(page.getByRole('searchbox', { name: '搜索服务器' })).toBeFocused()
   await page.getByRole('searchbox', { name: '搜索服务器' }).blur()
   expect(await firstRowCount(page)).toBe(7)
-  const rowBottom = await page
-    .locator('.live-card')
-    .evaluateAll((cards) => Math.max(...cards.slice(0, 7).map((c) => c.getBoundingClientRect().bottom)))
-  await page.setViewportSize({ width: 1440, height: Math.ceil(rowBottom) + 12 })
-  await page.screenshot({ path: 'preview.png' })
   for (const width of [1440, 768, 390, 320]) {
     await page.setViewportSize({ width, height: width === 1440 ? 1080 : 900 })
     if (width <= 390) expect(await firstRowCount(page)).toBe(2)

@@ -1,6 +1,6 @@
 # Football Monitor
 
-**你的服务器，你的主场。** 为极简探针 Monitor 构建的第三方足球球星卡主题。Vue 3 静态 SPA，当前版本 `1.0.7`。源码与发布：<https://github.com/NSJLUCAS/football-monitor>。
+**你的服务器，你的主场。** 为极简探针 Monitor 构建的第三方足球球星卡主题。Vue 3 静态 SPA，当前版本 `1.0.8`。源码与发布：<https://github.com/NSJLUCAS/football-monitor>。
 
 ![首页：本地模拟 API 的视觉验收](docs/screenshots/dashboard-1440.png)
 

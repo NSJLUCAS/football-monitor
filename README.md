@@ -2,7 +2,7 @@
 
 为极简探针 Monitor 打造的足球球星卡主题：每台服务器都是一名球员，**你的服务器，你的主场**。
 
-由 [NSJLUCAS](https://github.com/NSJLUCAS) 维护，当前版本 `1.0.7`。
+由 [NSJLUCAS](https://github.com/NSJLUCAS) 维护，当前版本 `1.0.8`。
 
 [![preview](preview.png)](preview.png)
 

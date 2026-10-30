@@ -78,7 +78,7 @@ const current = computed(() => previewConfig.value.nodes[String(selected.value)]
 const dirty = computed(() => !!Object.keys(values.value).length || !!Object.keys(nodeChanges.value).length)
 const nodeMode = computed(() => ['node', 'portrait', 'carriers'].includes(tab.value))
 const toggleFields: {
-  key: 'motion' | 'show_summary' | 'show_traffic' | 'show_billing' | 'show_carriers'
+  key: 'motion' | 'show_summary' | 'show_traffic' | 'show_billing' | 'show_carriers' | 'show_clock'
   label: string
   help: string
 }[] = [
@@ -99,6 +99,11 @@ const toggleFields: {
     help: '显示首页剩余价值与到期排行，以及详情页费用与到期块；不影响评分',
   },
   { key: 'show_carriers', label: '三网监控', help: '显示卡下延迟行与详情页三网面板；不影响评分' },
+  {
+    key: 'show_clock',
+    label: '首页时钟',
+    help: '在首页标题区右下角显示访客本地时间的字符时钟；放不下时不显示',
+  },
 ]
 watch(
   () => store.nodes,

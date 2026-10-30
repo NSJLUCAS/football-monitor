@@ -23,6 +23,7 @@ import type { MonitorNode } from '../domain/types'
 import { Button } from '../components/ui/button'
 import LiveCard from '../components/LiveCard.vue'
 import PageHeading from '../components/PageHeading.vue'
+import AsciiClock from '../components/AsciiClock.vue'
 type Status = 'all' | 'online' | 'offline'
 type Sort = 'hub' | 'score' | 'name'
 const store = useMonitorStore(),
@@ -210,6 +211,7 @@ const average = computed(() => {
     <span class="sync-note"
       ><span class="live-dot" />{{ store.updatedAt ? '与 Hub 保持同步' : '等待首次数据' }}</span
     >
+    <template v-if="store.config.show_clock" #aside><AsciiClock :motion="store.config.motion" /></template>
     <template v-if="!store.closed" #tabs>
       <div class="group-tabs" role="group" aria-label="节点分组">
         <button :class="{ selected: group === null }" :aria-pressed="group === null" @click="group = null">

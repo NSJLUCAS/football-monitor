@@ -329,6 +329,7 @@ svg {
 
 /* Page heading: breadcrumb, title, one-line description, underline tabs. */
 .page-head {
+  position: relative;
   padding-top: 22px;
   margin-bottom: 16px;
 }
@@ -375,6 +376,23 @@ svg {
   display: flex;
   align-items: center;
   gap: 10px;
+}
+/* Bottom right, under the actions and standing on the line under the heading; PageHeading drops it when the
+   tabs would run under it. */
+.page-head-aside {
+  position: absolute;
+  right: 0;
+  bottom: 1px;
+}
+.ascii-clock canvas {
+  display: block;
+  width: 220px;
+  height: 46px;
+}
+@media (max-width: 899px), (forced-colors: active) {
+  .page-head-aside {
+    display: none;
+  }
 }
 .page-tabs {
   margin-top: 16px;

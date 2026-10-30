@@ -70,6 +70,7 @@
     { "key": "show_traffic", "type": "boolean", "label": "显示流量", "default": true },
     { "key": "show_billing", "type": "boolean", "label": "显示费用", "default": true },
     { "key": "show_carriers", "type": "boolean", "label": "显示三网", "default": true },
+    { "key": "show_clock", "type": "boolean", "label": "显示时钟", "default": true },
     {
       "key": "exchange_rates",
       "type": "string",

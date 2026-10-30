@@ -266,6 +266,18 @@ describe('dashboard', () => {
     wrapper.unmount()
   })
 
+  it('shows the local time as a character clock beside the heading unless the clock is switched off', async () => {
+    const { wrapper, store } = await mountDashboard()
+    const clock = wrapper.find('.page-head-aside .ascii-clock')
+    expect(clock.attributes('role')).toBe('img')
+    expect(clock.attributes('aria-label')).toMatch(/^当前时间 \d\d:\d\d$/)
+    expect(clock.find('canvas').attributes('aria-hidden')).toBe('true')
+    store.config = { ...store.config, show_clock: false }
+    await flushPromises()
+    expect(wrapper.find('.ascii-clock').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
   it('hides value and expiry when billing is hidden, and everything when the summary is off', async () => {
     const { wrapper, store } = await mountDashboard()
     expect(wrapper.find('.overview').exists()).toBe(true)

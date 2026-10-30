@@ -147,6 +147,7 @@ export interface GlobalConfig {
   show_traffic: boolean
   show_billing: boolean
   show_carriers: boolean
+  show_clock: boolean
   exchange_rates: string
   upload_endpoint: string
 }

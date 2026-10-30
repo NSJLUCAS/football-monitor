@@ -21,6 +21,7 @@
     "package:check": "node scripts/verify-package.mjs",
     "licenses": "node scripts/licenses.mjs",
     "cards": "node scripts/cards.mjs",
+    "carriers": "node scripts/carriers.mjs",
     "icons": "node scripts/icons.mjs",
     "portraits": "node scripts/portraits.mjs"
   },

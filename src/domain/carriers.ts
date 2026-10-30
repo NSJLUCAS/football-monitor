@@ -1,8 +1,15 @@
 import type { CarrierConfig, CarrierId, HistoryResponse, NodeConfig } from './types'
-export const carriers: { id: CarrierId; name: string; short: string; color: string }[] = [
-  { id: 'telecom', name: '中国电信', short: '电信', color: '#54b8ff' },
-  { id: 'unicom', name: '中国联通', short: '联通', color: '#fb7185' },
-  { id: 'mobile', name: '中国移动', short: '移动', color: '#9ad969' },
+// Carrier logos supplied by the site owner (src/assets/carriers/), shown only to identify the carrier.
+const logos = import.meta.glob<string>('../assets/carriers/*.webp', {
+  query: '?url&no-inline',
+  import: 'default',
+  eager: true,
+})
+const logo = (id: CarrierId) => logos[`../assets/carriers/${id}.webp`]!
+export const carriers: { id: CarrierId; name: string; short: string; color: string; logo: string }[] = [
+  { id: 'telecom', name: '中国电信', short: '电信', color: '#54b8ff', logo: logo('telecom') },
+  { id: 'unicom', name: '中国联通', short: '联通', color: '#fb7185', logo: logo('unicom') },
+  { id: 'mobile', name: '中国移动', short: '移动', color: '#9ad969', logo: logo('mobile') },
 ]
 export const lines = [
   'CN2 GIA',
@@ -110,6 +117,17 @@ export function probeBars(history: HistoryResponse | undefined, taskIds: number[
     windowLoss: mean(windowLosses) ?? mean(loss.filter((v): v is number => v !== null)),
   }
 }
+/** Loss (%) of one task over the whole history window, or null when it has no samples. */
+export function taskLoss(history: HistoryResponse | undefined, taskId: number) {
+  const value = history?.loss[String(taskId)]
+  if (value !== undefined) return value
+  const points = history?.ping.filter((p) => p.task_id === taskId) ?? []
+  // Hub omits `loss` when it is 0; a failed probe counts as fully lost.
+  return mean(points.map((p) => p.loss ?? (p.latency === null ? 100 : 0)))
+}
+/** Plain-words grade on the same thresholds as `lossColor`. */
+export const lossGrade = (percent: number) =>
+  percent <= 0 ? '无丢包' : percent < 1 ? '极少' : percent < 3 ? '轻微' : percent < 10 ? '偏高' : '严重'
 const EMPTY_SEGMENT = 'var(--strip-empty-seg)'
 const GRADES = ['#4ade80', '#a3e635', '#facc15', '#fb923c', '#f87171']
 export const latencyColor = (ms: number | null) =>

@@ -17,7 +17,7 @@ import {
 } from '../domain/format'
 import type { HistoryResponse } from '../domain/types'
 import { emptyScore, nextTier, type Tier } from '../domain/score'
-import { carriers, resolveCarrier } from '../domain/carriers'
+import { carriers, lossColor, lossGrade, resolveCarrier, taskLoss } from '../domain/carriers'
 import { nodeTemplate, skinOf } from '../domain/skins'
 import type { ChartSeries } from '../domain/chart'
 import { ApiError } from '../services/api'
@@ -164,16 +164,23 @@ const carrierTasks = computed(() =>
           Date.now() / 1000,
           !!store.pingErrors[node.value!.id],
         )
-        const key = r.taskId === undefined ? '' : String(r.taskId)
         return {
           ...c,
           ...r,
-          probe: key ? data.value?.probes[key] : undefined,
-          loss: key ? data.value?.loss[key] : undefined,
+          probe: r.taskId ? data.value?.probes[String(r.taskId)] : undefined,
+          loss: r.taskId ? taskLoss(data.value, r.taskId) : null,
         }
       })
     : [],
 )
+// Probes with loss that are not tied to a carrier row, so they are not lost from view.
+const otherLoss = computed(() => {
+  const shown = new Set(carrierTasks.value.map((c) => c.taskId))
+  return Object.entries(data.value?.loss ?? {})
+    .filter(([id]) => !shown.has(Number(id)))
+    .map(([id, loss]) => ({ id, name: data.value!.probes[id] || `任务 #${id}`, loss }))
+})
+const pct = (loss: number) => `${Number(loss.toFixed(1))}%`
 </script>
 <template>
   <PageHeading
@@ -298,21 +305,45 @@ const carrierTasks = computed(() =>
           />
           <ul class="carrier-tasks">
             <li v-for="c in carrierTasks" :key="c.id" :style="{ '--carrier': c.color }">
-              <span class="carrier-task-name"><i aria-hidden="true" />{{ c.name }} · {{ c.line }}</span>
+              <span class="carrier-task-name"
+                ><img class="carrier-logo" :src="c.logo" alt="" aria-hidden="true" decoding="async" />{{
+                  c.name
+                }}
+                · {{ c.line }}</span
+              >
               <span>{{ c.taskId ? `任务 #${c.taskId}${c.probe ? ` ${c.probe}` : ''}` : '未配置探测' }}</span>
               <span>当前 {{ c.latency === null ? c.label : `${Number(c.latency.toFixed(1))} ms` }}</span>
-              <span>窗口丢包 {{ c.loss === undefined ? '—' : `${c.loss.toFixed(1)}%` }}</span>
+              <span v-if="c.loss === null" class="carrier-task-loss"
+                >丢包 {{ c.taskId && !data ? '读取中' : '暂无数据' }}</span
+              >
+              <span
+                v-else
+                class="carrier-task-loss"
+                :style="{ '--loss': lossColor(c.loss) }"
+                :title="`近 ${windowLabel(hours)}内探测失败的比例`"
+                >丢包 <b>{{ pct(c.loss) }}</b
+                ><em>{{ lossGrade(c.loss) }}</em></span
+              >
             </li>
           </ul>
-          <p>节点向目标发起 TCP 连接的握手时延，不保证等于访客到 VPS 的访问延迟。线路名称由站长配置。</p>
-          <p v-if="data && Object.keys(data.loss).length">
-            整个窗口探测丢包率：<span v-for="(loss, id) in data.loss" :key="id"
-              >{{ data.probes[id] || `#${id}` }} {{ loss.toFixed(1) }}%
-            </span>
+          <p>
+            延迟是节点向目标发起 TCP 连接的握手时延，不保证等于访客到 VPS 的访问延迟。丢包是近
+            {{ windowLabel(hours) }}内探测失败的比例（随下方“历史表现”的时间范围切换），0%
+            即没有丢包。线路名称由站长配置。
+          </p>
+          <p v-if="otherLoss.length">
+            其他探测任务：<span v-for="o in otherLoss" :key="o.id" class="carrier-other-loss"
+              >{{ o.name }} 丢包 {{ pct(o.loss) }}（{{ lossGrade(o.loss) }}）</span
+            >
           </p>
         </section>
         <section v-if="score" id="score" class="detail-section detail-score panel" aria-label="评分明细">
-          <ScoreBreakdown :node="node" :score="score" />
+          <ScoreBreakdown
+            :node="node"
+            :score="score"
+            :ping="store.ping[node.id]"
+            :ping-unavailable="!!store.pingErrors[node.id]"
+          />
         </section>
         <section id="history" class="detail-section" aria-labelledby="history-title">
           <div class="range-toolbar">

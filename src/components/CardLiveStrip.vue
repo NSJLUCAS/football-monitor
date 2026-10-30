@@ -64,6 +64,7 @@ const rows = computed(() => {
       region: (byCarrier && carrier?.short) || probeRegion(name) || `#${taskId}`,
       carrier: carrier?.id,
       color: carrier?.color,
+      logo: carrier?.logo,
       latency,
       title: [carrier?.name, name, label].filter(Boolean).join(' · '),
     }
@@ -125,7 +126,14 @@ const bars = computed(() => {
           :style="p.color ? { '--carrier': p.color } : undefined"
           :title="p.title"
           ><span class="strip-carrier-name"
-            ><i aria-hidden="true" /><span>{{ p.region }}</span></span
+            ><img
+              v-if="p.logo"
+              class="strip-carrier-logo"
+              :src="p.logo"
+              alt=""
+              aria-hidden="true"
+              decoding="async"
+            /><i v-else aria-hidden="true" /><span>{{ p.region }}</span></span
           ><span class="strip-latency"
             >{{ p.latency === null ? '—' : `${Number(p.latency.toFixed(1))}`
             }}<small v-if="p.latency !== null" class="strip-unit">ms</small></span

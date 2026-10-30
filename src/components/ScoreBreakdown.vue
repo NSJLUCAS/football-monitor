@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { bytes, duration, trafficUsed } from '../domain/format'
-import { probeRegion } from '../domain/carriers'
+import { probeRegion, resolveTask, statusText } from '../domain/carriers'
 import {
   NET_LABELS,
   NET_WEIGHTS,
@@ -9,20 +9,27 @@ import {
   statReadings,
   type NetKey,
   type NodeScore,
+  type ProbeSummary,
   type StatKey,
 } from '../domain/score'
-import type { MonitorNode } from '../domain/types'
+import type { HistoryResponse, MonitorNode } from '../domain/types'
 import ScoreGauge from './ScoreGauge.vue'
-const props = defineProps<{ node: MonitorNode; score: NodeScore }>()
+const props = defineProps<{
+  node: MonitorNode
+  score: NodeScore
+  /** Recent probe history for the latest readings in the latency tile. */
+  ping?: HistoryResponse
+  pingUnavailable?: boolean
+}>()
 const pair = (a: number | null | undefined, b: number | null | undefined) => `${bytes(a)} / ${bytes(b)}`
 const ms = (v: number | null) => (v === null ? '—' : `${Number(v.toFixed(1))} ms`)
 const pct = (v: number | null) => (v === null ? '—' : `${Number(v.toFixed(2))}%`)
 const weights = (Object.keys(NET_WEIGHTS) as NetKey[])
   .map((k) => `${NET_LABELS[k]} ${Math.round(NET_WEIGHTS[k] * 100)}%`)
   .join(' + ')
+const region = (p: ProbeSummary) => probeRegion(p.name) || `#${p.taskId}`
 const network = computed<{ key: NetKey; name: string; rows: [string, string][] }[]>(() => {
-  const { values, probes } = props.score,
-    region = (p: (typeof probes)[number]) => probeRegion(p.name) || `#${p.taskId}`
+  const { values, probes } = props.score
   return [
     {
       key: 'latency',
@@ -89,6 +96,18 @@ const resources = computed<{ key: StatKey; name: string; rows: [string, string][
       key: 'upt',
       name: '持续运行',
       rows: [['系统 Uptime（非 Agent 连续在线）', duration(m?.uptime)]],
+    },
+    {
+      key: 'png',
+      name: '网络延迟',
+      // The card prints the 24-hour average; the same probes' latest readings sit beside it.
+      rows: [
+        ['24 小时平均（卡面取值）', m ? ms(props.score.values.latency) : '—'],
+        ...props.score.probes.map((p): [string, string] => {
+          const r = resolveTask(p.taskId, props.ping, Date.now() / 1000, props.pingUnavailable)
+          return [`${region(p)} 当前`, !m ? '—' : r.latency === null ? statusText[r.status] : ms(r.latency)]
+        }),
+      ],
     },
   ]
 })

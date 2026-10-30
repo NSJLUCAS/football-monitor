@@ -20,9 +20,9 @@ const rows = computed(() =>
       :title="`${c.name} · ${c.label}${c.taskId ? ` · 任务 #${c.taskId}` : ''}`"
     >
       <span class="carrier-name"
-        ><svg viewBox="0 0 20 20" aria-hidden="true">
-          <path d="m10 2 7 4v8l-7 4-7-4V6Zm0 0v16M3 6l14 8M17 6 3 14" /></svg
-        >{{ c.short }}</span
+        ><img class="carrier-logo" :src="c.logo" alt="" aria-hidden="true" decoding="async" />{{
+          c.short
+        }}</span
       >
       <strong
         >{{ c.latency === null ? '—' : `${Number(c.latency.toFixed(1))}`

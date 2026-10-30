@@ -7,6 +7,7 @@ import { createRouter, createMemoryHistory } from 'vue-router'
 import PlayerCard from '../src/components/PlayerCard.vue'
 import CardLiveStrip from '../src/components/CardLiveStrip.vue'
 import LiveCard from '../src/components/LiveCard.vue'
+import { carriers } from '../src/domain/carriers'
 import { normalizeNodes } from '../src/domain/normalize'
 import { parseConfig } from '../src/domain/config'
 import { resolveSkin, skins } from '../src/domain/skins'
@@ -308,6 +309,12 @@ describe('card live strip', () => {
     expect(items.map((s) => s.find('.strip-carrier-name').text())).toEqual(['上海', '广州', '北京'])
     expect(strip.findAll('.strip-latency').map((s) => s.text())).toEqual(['60.5ms', '—', '33.3ms'])
     expect(items.map((s) => s.attributes('data-carrier'))).toEqual(['unicom', 'telecom', undefined])
+    // Carrier probes lead with that carrier's logo; an unmapped probe keeps the neutral dot.
+    expect(items.map((s) => s.findAll('.strip-carrier-logo').at(0)?.attributes('src') ?? 'dot')).toEqual([
+      carriers[1]!.logo,
+      carriers[0]!.logo,
+      'dot',
+    ])
     expect(items.map((s) => s.attributes('title'))).toEqual([
       '中国联通 · 上海 TCP 目标 · 探测成功',
       '中国电信 · 广州 TCP 目标 · 数据过期',

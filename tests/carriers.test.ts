@@ -4,8 +4,10 @@ import {
   latencyColor,
   lineSkills,
   lossColor,
+  lossGrade,
   probeBars,
   probeRegion,
+  taskLoss,
 } from '../src/domain/carriers'
 import type { HistoryResponse } from '../src/domain/types'
 
@@ -87,5 +89,26 @@ describe('line skills', () => {
       '#f87171',
       'var(--strip-empty-seg)',
     ])
+    expect([0, 0.5, 2, 5, 20].map(lossGrade)).toEqual(['无丢包', '极少', '轻微', '偏高', '严重'])
+  })
+  it('reads a task’s window loss, treating a loss Hub left out as 0% when samples exist', () => {
+    const history: HistoryResponse = {
+      metrics: [],
+      ping: [
+        { task_id: 1, ts: 1000, latency: 40 },
+        { task_id: 2, ts: 1000, latency: 40 },
+        { task_id: 2, ts: 1060, latency: 40 },
+        { task_id: 3, ts: 1000, latency: 40 },
+        { task_id: 3, ts: 1060, latency: null },
+      ],
+      probes: {},
+      loss: { '1': 5 },
+      step: 60,
+    }
+    expect(taskLoss(history, 1)).toBe(5)
+    expect(taskLoss(history, 2)).toBe(0)
+    expect(taskLoss(history, 3)).toBe(50)
+    expect(taskLoss(history, 4)).toBeNull()
+    expect(taskLoss(undefined, 1)).toBeNull()
   })
 })

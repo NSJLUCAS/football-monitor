@@ -22,7 +22,11 @@
 /* Flat grey-blue surfaces with one orange accent. `--primary-text` is the accent as readable text. */
 :root {
   color-scheme: light;
-  --background: #f4f5f8;
+  --background: #fffcf8;
+  /* Light pages sit on warm grid paper; panels keep their own surface above it. */
+  --paper:
+    linear-gradient(to right, #ebe7e1 1px, transparent 1px) 0 0 / 40px 40px,
+    linear-gradient(to bottom, #ebe7e1 1px, transparent 1px) 0 0 / 40px 40px;
   --foreground: #161a22;
   --surface: #ffffff;
   --surface-raised: #eceef3;
@@ -45,6 +49,7 @@
 :root.dark {
   color-scheme: dark;
   --background: #14161c;
+  --paper: none;
   --foreground: #e7e9ee;
   --surface: #1b1e26;
   --surface-raised: #242833;
@@ -66,7 +71,8 @@
 body {
   margin: 0;
   min-width: 320px;
-  background: var(--background);
+  background: var(--paper);
+  background-color: var(--background);
   color: var(--foreground);
   font-size: 14px;
   line-height: 1.5;
@@ -760,12 +766,12 @@ svg {
   color: var(--carrier);
   font-size: 10px;
 }
-.carrier-name svg {
-  width: 12px;
-  height: 12px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.6;
+/* Owner-supplied logos keep their brand colours; the box keeps wide and tall marks the same size. */
+.carrier-logo {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
 }
 .carrier-cell strong {
   font-size: 12px;
@@ -1437,11 +1443,29 @@ svg {
   color: var(--foreground);
   font-weight: 600;
 }
-.carrier-task-name i {
-  width: 8px;
-  height: 8px;
-  border-radius: 2px;
-  background: var(--carrier);
+.carrier-task-name .carrier-logo {
+  width: 18px;
+  height: 18px;
+}
+.carrier-task-loss {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.carrier-task-loss b {
+  color: var(--foreground);
+  font-weight: 600;
+}
+.carrier-task-loss em {
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-style: normal;
+  color: var(--loss);
+  background: color-mix(in srgb, var(--loss) 16%, transparent);
+}
+.carrier-other-loss + .carrier-other-loss::before {
+  content: '；';
 }
 .rules-table-wrap {
   margin: 14px 0;

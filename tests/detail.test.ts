@@ -259,7 +259,19 @@ describe('node detail page', () => {
     expect(score.text()).toContain('4 ms')
     expect(score.text()).toContain('1.5%')
     expect(score.text()).toContain('上海电信')
-    expect(score.findAll('.score-reading').map((r) => r.text())).toEqual(['23%', '38%', '25%', '16%', '12天'])
+    expect(score.findAll('.score-reading').map((r) => r.text())).toEqual([
+      '23%',
+      '38%',
+      '25%',
+      '16%',
+      '12天',
+      '40ms',
+    ])
+    // The sixth tile explains the card's latency: the 24-hour average beside each probe's latest reading.
+    const latency = score.findAll('.score-group').at(-1)!
+    expect(latency.find('h3').text()).toBe('网络延迟')
+    expect(latency.text()).toContain('24 小时平均（卡面取值）40 ms')
+    expect(latency.text()).toContain('上海电信 当前42 ms')
     expect(score.find('a[href="/about"]').exists()).toBe(false)
     const text = score.text()
     expect(text).toContain('23.4%')
@@ -339,6 +351,7 @@ describe('node detail page', () => {
     ])
       expect(text, stale).not.toContain(stale)
     expect(wrapper.find('#score').text()).toContain('离线，无实时数据')
+    expect(wrapper.findAll('#score .score-group').at(-1)!.text()).toContain('24 小时平均（卡面取值）—')
     expect(text).toContain(`— / ${bytes(8 * GB)}`)
     expect(text).toContain(`— / ${bytes(80 * GB)}`)
     expect(wrapper.find('#system').text()).toContain('— / — / —')

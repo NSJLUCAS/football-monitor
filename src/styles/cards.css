@@ -503,6 +503,12 @@
   /* Probes not mapped to a carrier get a neutral dot. */
   background: var(--carrier, var(--muted));
 }
+.strip-carrier-logo {
+  flex-shrink: 0;
+  width: 12px;
+  height: 12px;
+  object-fit: contain;
+}
 .strip-latency {
   font-weight: 700;
   white-space: nowrap;

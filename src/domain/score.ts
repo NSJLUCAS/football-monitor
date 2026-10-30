@@ -1,3 +1,4 @@
+import { taskLoss } from './carriers'
 import { trafficUsed } from './format'
 import type { HistoryResponse, MonitorNode } from './types'
 
@@ -53,8 +54,7 @@ function summarize(taskId: number, history: HistoryResponse): ProbeSummary {
     name: history.probes[String(taskId)] ?? '',
     latency: mean(readings),
     jitter: mean(bands.length ? bands : steps),
-    // Hub omits `loss` when it is 0; a failed probe counts as fully lost.
-    loss: history.loss[String(taskId)] ?? mean(points.map((p) => p.loss ?? (p.latency === null ? 100 : 0))),
+    loss: taskLoss(history, taskId),
   }
 }
 export function networkScore(node: MonitorNode, history?: HistoryResponse): NodeScore {

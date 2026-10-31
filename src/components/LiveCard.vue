@@ -3,11 +3,12 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { bytes } from '../domain/format'
 import { emptyScore, nextTier } from '../domain/score'
-import type { MonitorNode } from '../domain/types'
+import type { CardView, MonitorNode } from '../domain/types'
 import { useMonitorStore } from '../stores/monitor'
 import PlayerCard from './PlayerCard.vue'
 import CardLiveStrip from './CardLiveStrip.vue'
-const props = defineProps<{ node: MonitorNode }>()
+import NodePanel from './NodePanel.vue'
+const props = withDefaults(defineProps<{ node: MonitorNode; view?: CardView }>(), { view: 'stacked' })
 const store = useMonitorStore(),
   element = ref<HTMLElement>(),
   visible = ref(false)
@@ -68,13 +69,26 @@ onBeforeUnmount(() => {
     ref="element"
     class="live-card"
     :class="{ 'card-intro': slot !== null, 'card-ready': ready }"
+    :data-view="view"
     :style="slot === null ? undefined : { '--intro-delay': `${Math.min(slot, 12) * 40}ms` }"
   >
     <RouterLink class="live-card-link" :to="`/node/${node.id}`">
-      <!-- The link is named by this text alone (name, status, overall); the card face and strip are hidden. -->
+      <!-- The link is named by this text alone (name, status, overall); the card face, strip and panel are hidden. -->
       <span class="sr-only">{{ label }}</span>
       <PlayerCard :node="node" :config="store.config" :score="score" :tier="tier" aria-hidden="true" />
+      <NodePanel
+        v-if="view === 'split'"
+        aria-hidden="true"
+        :node="node"
+        :node-config="store.config.nodes[node.id]"
+        :history="store.ping[node.id]"
+        :unavailable="!!store.pingErrors[node.id]"
+        :show-carriers="store.config.show_carriers"
+        :show-traffic="store.config.show_traffic"
+        :show-billing="store.config.show_billing"
+      />
       <CardLiveStrip
+        v-else
         aria-hidden="true"
         :node="node"
         :node-config="store.config.nodes[node.id]"

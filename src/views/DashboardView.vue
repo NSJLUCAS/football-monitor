@@ -15,6 +15,7 @@ import {
   WifiOff,
 } from '@lucide/vue'
 import { useMonitorStore } from '../stores/monitor'
+import { useCardView } from '../services/cardView'
 import { bytes, cycle, money, rate } from '../domain/format'
 import { expiringSoon, fleetSummary, parseRates } from '../domain/fleet'
 import { flagUrl } from '../domain/flags'
@@ -37,6 +38,7 @@ const statuses: { id: Status; label: string }[] = [
   { id: 'online', label: '在线' },
   { id: 'offline', label: '离线' },
 ]
+const { view } = useCardView()
 const crumbs = [{ label: 'Football Monitor', to: '/' }, { label: '首页' }]
 const search = computed(() => (typeof route.query.q === 'string' ? route.query.q : ''))
 function clearFilters() {
@@ -336,6 +338,7 @@ const average = computed(() => {
         class="card-grid loading-grid"
         :data-layout="store.config.layout"
         :data-size="store.config.card_size"
+        :data-view="view"
         aria-busy="true"
         aria-label="正在加载节点"
       >
@@ -361,8 +364,14 @@ const average = computed(() => {
         </p>
         <Button v-if="store.nodes.length" variant="outline" @click="clearFilters">查看全部节点</Button>
       </div>
-      <div v-else class="card-grid" :data-layout="store.config.layout" :data-size="store.config.card_size">
-        <LiveCard v-for="node in filtered" :key="node.id" :node="node" />
+      <div
+        v-else
+        class="card-grid"
+        :data-layout="store.config.layout"
+        :data-size="store.config.card_size"
+        :data-view="view"
+      >
+        <LiveCard v-for="node in filtered" :key="node.id" :node="node" :view="view" />
       </div>
       <p class="squad-footnote">
         <span>●</span> 三网延迟为节点到指定目标的 TCP 握手时间，非访客到节点的访问延迟。

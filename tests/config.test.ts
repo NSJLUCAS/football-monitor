@@ -133,6 +133,14 @@ describe('site config contract', () => {
     })
     expect(() => mergeConfig({}, { values: { exchange_rates: 'USD' } })).toThrow()
   })
+  it('defaults the home page to the stacked card view and saves only a known view', () => {
+    expect(parseConfig({}).card_view).toBe('stacked')
+    expect(parseConfig({ card_view: 'split' }).card_view).toBe('split')
+    expect(parseConfig({ card_view: 'grid' }).card_view).toBe('stacked')
+    expect(mergeConfig({ a: 1 }, { values: { card_view: 'split' } })).toEqual({ a: 1, card_view: 'split' })
+    expect(mergeConfig({ card_view: 'split' }, { values: { card_view: 'stacked' } })).toEqual({})
+    expect(() => mergeConfig({}, { values: { card_view: 'grid' as never } })).toThrow(ConfigError)
+  })
   it('validates the node provider and keeps it when saving', () => {
     const parsed = parseConfig({
       node_config: JSON.stringify({

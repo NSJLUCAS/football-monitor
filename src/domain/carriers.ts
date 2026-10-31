@@ -84,6 +84,50 @@ export function lineSkills(config?: NodeConfig) {
     return [{ carrier: c.id, line, color: c.color, name: c.name }]
   })
 }
+/**
+ * The first three Hub probes of a node, in Hub order (ascending task id), as the home page shows them. A probe
+ * takes the colour of the carrier it is mapped to or named after; probes named after distinct carriers are
+ * labelled by carrier (“移动”), others by region, so long names such as “广东移动-V6” fit the column.
+ */
+export function shownProbes(
+  history: HistoryResponse | undefined,
+  config: NodeConfig | undefined,
+  online: boolean,
+  unavailable = false,
+  now = Date.now() / 1000,
+) {
+  const probes = history?.probes ?? {},
+    ids = Object.keys(probes)
+      .map(Number)
+      .sort((a, b) => a - b)
+      .slice(0, 3),
+    // The site owner's mapping wins over what the probe name suggests; colour and label follow the same one.
+    owned = ids.map(
+      (id) =>
+        carriers.find((c) => config?.carriers?.[c.id]?.taskId === id) ??
+        carriers.find((c) => c.id === carrierFromName(probes[String(id)])),
+    ),
+    named = ids.map((id) => carrierFromName(probes[String(id)])),
+    byCarrier =
+      named.every(Boolean) && owned.every(Boolean) && new Set(owned.map((c) => c!.id)).size === ids.length
+  return ids.map((taskId, i) => {
+    const name = probes[String(taskId)] ?? '',
+      carrier = owned[i],
+      r = resolveTask(taskId, history, now, unavailable),
+      // Offline nodes show no live latency, the same as their rates.
+      latency = online ? r.latency : null,
+      label = online ? statusText[r.status] : '节点离线'
+    return {
+      taskId,
+      region: (byCarrier && carrier?.short) || probeRegion(name) || `#${taskId}`,
+      carrier: carrier?.id,
+      color: carrier?.color,
+      logo: carrier?.logo,
+      latency,
+      title: [carrier?.name, name, label].filter(Boolean).join(' · '),
+    }
+  })
+}
 const SEGMENTS = 10
 const mean = (values: number[]) => (values.length ? values.reduce((a, b) => a + b, 0) / values.length : null)
 /** Ten time segments of latency (ms) and loss (%) over the shown probes, plus current and window figures. */

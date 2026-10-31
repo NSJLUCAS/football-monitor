@@ -1,15 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import {
-  carrierFromName,
-  carriers,
-  latencyColor,
-  lossColor,
-  probeBars,
-  probeRegion,
-  resolveTask,
-  statusText,
-} from '../domain/carriers'
+import { latencyColor, lossColor, probeBars, shownProbes } from '../domain/carriers'
 import { bytes, rate } from '../domain/format'
 import type { HistoryResponse, MonitorNode, NodeConfig } from '../domain/types'
 const props = defineProps<{
@@ -33,43 +24,9 @@ watch(
 const barState = computed(() =>
   !props.history && !props.unavailable ? 'loading' : arrived.value ? 'fill' : undefined,
 )
-// The first three Hub probes of this node, in Hub order (ascending task id). A probe takes the colour of
-// the carrier it is mapped to or named after; probes named after distinct carriers are labelled by
-// carrier (“移动”), others by region, so long names such as “广东移动-V6” fit the column.
-const rows = computed(() => {
-  const probes = props.history?.probes ?? {},
-    now = Date.now() / 1000,
-    ids = Object.keys(probes)
-      .map(Number)
-      .sort((a, b) => a - b)
-      .slice(0, 3),
-    // The site owner's mapping wins over what the probe name suggests; colour and label follow the same one.
-    owned = ids.map(
-      (id) =>
-        carriers.find((c) => props.nodeConfig?.carriers?.[c.id]?.taskId === id) ??
-        carriers.find((c) => c.id === carrierFromName(probes[String(id)])),
-    ),
-    named = ids.map((id) => carrierFromName(probes[String(id)])),
-    byCarrier =
-      named.every(Boolean) && owned.every(Boolean) && new Set(owned.map((c) => c!.id)).size === ids.length
-  return ids.map((taskId, i) => {
-    const name = probes[String(taskId)] ?? '',
-      carrier = owned[i],
-      r = resolveTask(taskId, props.history, now, props.unavailable),
-      // Offline nodes show no live latency, the same as their rates.
-      latency = props.node.online ? r.latency : null,
-      label = props.node.online ? statusText[r.status] : '节点离线'
-    return {
-      taskId,
-      region: (byCarrier && carrier?.short) || probeRegion(name) || `#${taskId}`,
-      carrier: carrier?.id,
-      color: carrier?.color,
-      logo: carrier?.logo,
-      latency,
-      title: [carrier?.name, name, label].filter(Boolean).join(' · '),
-    }
-  })
-})
+const rows = computed(() =>
+  shownProbes(props.history, props.nodeConfig, props.node.online, props.unavailable),
+)
 const bars = computed(() => {
   const b = probeBars(
     props.history,

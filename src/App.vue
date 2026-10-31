@@ -1,13 +1,16 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch, watchEffect } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
-import { Sun, Moon, Settings2, ArrowUpRight, Search } from '@lucide/vue'
+import { Sun, Moon, Settings2, ArrowUpRight, Search, LayoutGrid, LayoutList } from '@lucide/vue'
 import { useMonitorStore } from './stores/monitor'
+import { useCardView } from './services/cardView'
 import manifest from '../theme.json'
 import { Button } from './components/ui/button'
 const store = useMonitorStore(),
   route = useRoute(),
   router = useRouter()
+// The home page card view toggle sits beside the appearance toggle; it only means something on the home page.
+const { view: cardView, toggle: toggleCardView } = useCardView()
 const visitor = ref<string | null>(null)
 try {
   visitor.value = localStorage.getItem('football-monitor:appearance')
@@ -120,6 +123,17 @@ const connectionText = computed(
           ><i aria-hidden="true" /><span class="connection-text">{{ connectionText }}</span></span
         ><Button v-if="store.me?.authed" variant="ghost" size="icon" as-child aria-label="主题设置"
           ><RouterLink to="/settings"><Settings2 :size="18" /></RouterLink></Button
+        ><Button
+          v-if="route.path === '/' && !store.closed"
+          variant="ghost"
+          size="icon"
+          class="view-toggle"
+          :aria-label="cardView === 'split' ? '切换为上下形式' : '切换为左右形式'"
+          :title="
+            cardView === 'split' ? '切换为上下形式：卡面下方显示数据' : '切换为左右形式：卡面右侧显示数据面板'
+          "
+          @click="toggleCardView"
+          ><LayoutGrid v-if="cardView === 'split'" :size="18" /><LayoutList v-else :size="18" /></Button
         ><Button
           variant="ghost"
           size="icon"

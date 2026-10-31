@@ -278,6 +278,22 @@ describe('dashboard', () => {
     wrapper.unmount()
   })
 
+  it('shows the site owner’s card view as a data panel beside each card', async () => {
+    const { wrapper, store } = await mountDashboard()
+    const grid = () => wrapper.find('.card-grid')
+    expect(grid().attributes('data-view')).toBe('stacked')
+    expect(wrapper.findAll('.card-live-strip')).toHaveLength(4)
+    store.config = { ...store.config, card_view: 'split' }
+    await flushPromises()
+    expect(grid().attributes('data-view')).toBe('split')
+    expect(wrapper.findAll('.node-panel')).toHaveLength(4)
+    expect(wrapper.find('.card-live-strip').exists()).toBe(false)
+    // Each row stays one link, named by its hidden text alone.
+    expect(wrapper.findAll('.live-card-link')).toHaveLength(4)
+    expect(wrapper.find('.node-panel').attributes('aria-hidden')).toBe('true')
+    wrapper.unmount()
+  })
+
   it('hides value and expiry when billing is hidden, and everything when the summary is off', async () => {
     const { wrapper, store } = await mountDashboard()
     expect(wrapper.find('.overview').exists()).toBe(true)
@@ -326,6 +342,32 @@ describe('top bar search', () => {
     await flushPromises()
     expect('q' in router.currentRoute.value.query).toBe(false)
     wrapper.unmount()
+  })
+
+  it('switches the home page card view beside the appearance toggle, only on the home page', async () => {
+    localStorage.removeItem('football-monitor:card-view')
+    const { wrapper, router } = await mountApp('/')
+    const toggle = () => wrapper.find('header .view-toggle')
+    expect(toggle().attributes('aria-label')).toBe('切换为左右形式')
+    expect(toggle().element.nextElementSibling?.getAttribute('aria-label')).toMatch(/外观$/)
+    await toggle().trigger('click')
+    expect(wrapper.find('.card-grid').attributes('data-view')).toBe('split')
+    expect(toggle().attributes('aria-label')).toBe('切换为上下形式')
+    // The site default is still stacked, so this browser keeps the pick against it.
+    expect(JSON.parse(localStorage.getItem('football-monitor:card-view')!)).toEqual({
+      view: 'split',
+      site: 'stacked',
+    })
+    useMonitorStore().config = { ...useMonitorStore().config, card_view: 'split' }
+    await flushPromises()
+    expect(wrapper.find('.card-grid').attributes('data-view')).toBe('split')
+    await toggle().trigger('click')
+    expect(wrapper.find('.card-grid').attributes('data-view')).toBe('stacked')
+    await router.push('/settings')
+    await flushPromises()
+    expect(toggle().exists()).toBe(false)
+    wrapper.unmount()
+    localStorage.removeItem('football-monitor:card-view')
   })
 
   it('jumps back to the home page with q on Enter elsewhere', async () => {

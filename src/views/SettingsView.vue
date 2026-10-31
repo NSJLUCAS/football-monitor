@@ -16,9 +16,11 @@ import {
 import manifest from '../../theme.json'
 import { useMonitorStore } from '../stores/monitor'
 import { DEFAULT_CONFIG } from '../domain/config'
+import { clearVisitorView } from '../services/cardView'
 import { skinOf } from '../domain/skins'
 import { emptyScore, nextTier } from '../domain/score'
 import type {
+  CardView,
   ConfigPatch,
   GlobalConfig,
   NodeConfig,
@@ -139,6 +141,11 @@ function updateGlobal<K extends keyof GlobalConfig>(key: K, value: GlobalConfig[
   values.value[key] = value
   message.value = ''
   error.value = ''
+}
+// Whoever sets the site default wants to see it here, so this browser's own pick from the home page goes.
+function viewChange(value: CardView) {
+  clearVisitorView()
+  updateGlobal('card_view', value)
 }
 function updateNode(value: NodeConfig) {
   updateNodeFor(selected.value, value)
@@ -278,7 +285,7 @@ async function save() {
             ></template
           >
           <template v-else-if="tab === 'global'"
-            ><div class="form-row">
+            ><div class="form-row form-row-3">
               <div class="form-field">
                 <label for="global-layout">卡片布局</label
                 ><select
@@ -311,8 +318,21 @@ async function save() {
                   <option value="large">大卡 · 每行 6 张</option>
                 </select>
               </div>
+              <div class="form-field">
+                <label for="global-view">首页形式</label
+                ><select
+                  id="global-view"
+                  :value="previewConfig.card_view"
+                  @change="viewChange(($event.target as HTMLSelectElement).value as CardView)"
+                >
+                  <option value="stacked">上下 · 卡下数据</option>
+                  <option value="split">左右 · 右侧面板</option>
+                </select>
+              </div>
             </div>
-            <p class="form-help">每行张数指桌面宽屏下的排布，窄屏会自动减少。</p>
+            <p class="form-help">
+              每行张数指桌面宽屏下的排布，窄屏会自动减少。首页形式：上下为卡面下方显示速率与三网，左右为卡面右侧显示数据面板；访客可用顶栏深浅色按钮旁的图标临时切换，只记在自己的浏览器里。
+            </p>
             <div class="form-field">
               <label for="global-appearance">站点默认外观</label
               ><select

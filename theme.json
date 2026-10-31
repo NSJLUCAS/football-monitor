@@ -44,6 +44,16 @@
       ]
     },
     {
+      "key": "card_view",
+      "type": "select",
+      "label": "首页形式",
+      "default": "stacked",
+      "options": [
+        { "value": "stacked", "label": "上下（卡面 + 卡下数据）" },
+        { "value": "split", "label": "左右（卡面 + 右侧数据面板）" }
+      ]
+    },
+    {
       "key": "card_size",
       "type": "select",
       "label": "卡片尺寸",

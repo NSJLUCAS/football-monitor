@@ -2104,6 +2104,9 @@ svg {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
 }
+.form-row-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
 .form-field {
   display: flex;
   flex-direction: column;

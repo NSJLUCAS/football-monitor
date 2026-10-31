@@ -7,6 +7,7 @@ import {
   lossGrade,
   probeBars,
   probeRegion,
+  shownProbes,
   taskLoss,
 } from '../src/domain/carriers'
 import type { HistoryResponse } from '../src/domain/types'
@@ -110,5 +111,32 @@ describe('line skills', () => {
     expect(taskLoss(history, 3)).toBe(50)
     expect(taskLoss(history, 4)).toBeNull()
     expect(taskLoss(undefined, 1)).toBeNull()
+  })
+})
+
+describe('shown probes', () => {
+  it('takes the first three probes in Hub order, the owner mapping first, offline without latency', () => {
+    const now = 10000,
+      history: HistoryResponse = {
+        metrics: [],
+        ping: [
+          { task_id: 5, ts: now - 10, latency: 30 },
+          { task_id: 2, ts: now - 10, latency: 20 },
+        ],
+        probes: { '9': '东京', '5': '上海 TCP', '2': '广州 TCP', '3': '北京 TCP' },
+        loss: {},
+        step: 60,
+      },
+      config = { carriers: { mobile: { taskId: 5 } } }
+    const rows = shownProbes(history, config, true, false, now)
+    expect(rows.map((r) => [r.taskId, r.region, r.carrier, r.latency])).toEqual([
+      [2, '广州', undefined, 20],
+      [3, '北京', undefined, null],
+      [5, '上海', 'mobile', 30],
+    ])
+    expect(rows[1]!.title).toBe('北京 TCP · 数据暂不可用')
+    expect(shownProbes(history, config, false, false, now).map((r) => r.latency)).toEqual([null, null, null])
+    expect(shownProbes(history, config, false, false, now)[0]!.title).toBe('广州 TCP · 节点离线')
+    expect(shownProbes(undefined, config, true)).toEqual([])
   })
 })

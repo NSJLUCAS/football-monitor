@@ -165,6 +165,41 @@ test('dashboard density follows saved layout and card size', async ({ page }) =>
     expect(await noHorizontalOverflow(page)).toBe(true)
   }
 })
+test('split view puts a data panel beside each card and visitors can switch back', async ({ page }) => {
+  await serveSquad(page)
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await page.goto('/settings')
+  await page.getByRole('button', { name: '全局设置', exact: true }).click()
+  await page.getByLabel('首页形式', { exact: true }).selectOption('split')
+  await saveSettings(page)
+  await page.goto('/')
+  await expect(page.locator('.card-grid')).toHaveAttribute('data-view', 'split')
+  await expect(page.locator('.node-panel')).toHaveCount(10)
+  await expect(page.locator('.card-live-strip')).toHaveCount(0)
+  await expect(page.locator('.np-probe').first()).toBeVisible()
+  expect(await firstRowCount(page)).toBe(3)
+  await page.screenshot({ path: `${shots}/dashboard-split-1440.png`, fullPage: true })
+  for (const width of [768, 390, 320]) {
+    await page.setViewportSize({ width, height: 900 })
+    expect(await firstRowCount(page)).toBe(1)
+    expect(await noHorizontalOverflow(page)).toBe(true)
+  }
+  await page.screenshot({ path: `${shots}/dashboard-split-320.png`, fullPage: true })
+  // A visitor's own pick outlasts a reload; the site setting stays as saved.
+  await page.getByRole('button', { name: '切换为上下形式' }).click()
+  await expect(page.locator('.card-live-strip')).toHaveCount(10)
+  await page.reload()
+  await expect(page.locator('.card-grid')).toHaveAttribute('data-view', 'stacked')
+  await expect(page.getByRole('button', { name: '切换为左右形式' })).toBeVisible()
+  // Changing the setting in this browser drops its own pick, so the owner sees what they chose.
+  await page.goto('/settings')
+  await page.getByRole('button', { name: '全局设置', exact: true }).click()
+  await page.getByLabel('首页形式', { exact: true }).selectOption('stacked')
+  await page.getByLabel('首页形式', { exact: true }).selectOption('split')
+  await saveSettings(page)
+  await page.goto('/')
+  await expect(page.locator('.card-grid')).toHaveAttribute('data-view', 'split')
+})
 test('search, groups and detail history work', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 })
   await page.goto('/node/103')

@@ -137,10 +137,13 @@ export interface NodeConfig {
   portrait?: PortraitConfig
   carriers?: Partial<Record<CarrierId, CarrierConfig>>
 }
+/** Home page node presentation: the card over its live strip, or the card beside a data panel. */
+export type CardView = 'stacked' | 'split'
 export interface GlobalConfig {
   default_template: TemplateId
   layout: 'comfortable' | 'compact'
   card_size: 'standard' | 'large'
+  card_view: CardView
   appearance: 'dark' | 'light' | 'system'
   motion: boolean
   show_summary: boolean

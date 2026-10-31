@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { nextTick } from 'vue'
 import { mount } from '@vue/test-utils'
 import NodePanel from '../src/components/NodePanel.vue'
 import { carriers } from '../src/domain/carriers'
@@ -117,7 +118,18 @@ describe('node panel', () => {
       '↓1.5MB/s↑1.3MB/s',
       '⇡2TB⇣3TB',
       '剩余15天¥14.78',
+      '今日流量0B',
     ])
+  })
+  it("shows today's traffic in the last box with the split on hover, offline nodes included", () => {
+    const today = { ...online, day_rx: 8 * GB, day_tx: 2 * GB }
+    for (const node of [today, { ...today, online: false, metrics: null }]) {
+      const box = panel({ node }).findAll('.np-box').at(-1)!
+      expect(box.classes()).toContain('np-today')
+      expect(box.find('.np-box-label').text()).toBe('今日流量')
+      expect(box.find('b').text()).toBe('10 GB')
+      expect(box.attributes('title')).toBe('今日下行 8 GB · 今日上行 2 GB')
+    }
   })
   it('leaves traffic and billing boxes out when they are hidden', () => {
     const wrapper = panel({ showTraffic: false, showBilling: false })
@@ -137,7 +149,11 @@ describe('node panel', () => {
     ])
     for (const row of rows) expect(row.findAll('.np-segs i')).toHaveLength(20)
     expect(panel({ showCarriers: false }).find('.np-probes').exists()).toBe(false)
-    expect(panel({ history: undefined }).find('.np-empty').text()).toBe('暂无探测任务')
+    expect(
+      panel({ history: { ...history, probes: {} } })
+        .find('.np-empty')
+        .text(),
+    ).toBe('暂无探测任务')
   })
   it('shows dashes for live readings of an offline node and how long it has been away', () => {
     const wrapper = panel({ node: offline })
@@ -150,5 +166,27 @@ describe('node panel', () => {
   it('shows dashes for loss when the probes could not be loaded', () => {
     const rows = panel({ unavailable: true }).findAll('.np-probe')
     expect(rows.map((r) => r.findAll('.np-probe-value')[1]!.text())).toEqual(['—', '—', '—'])
+  })
+  it('sweeps three empty rows while the probes load, then fills them in once, on first arrival', async () => {
+    const wrapper = panel({ history: undefined })
+    const probes = () => wrapper.find('.np-probes')
+    expect(probes().attributes('data-state')).toBe('loading')
+    expect(wrapper.find('.np-empty').exists()).toBe(false)
+    const rows = wrapper.findAll('.np-probe')
+    expect(rows).toHaveLength(3)
+    expect(rows[0]!.attributes('title')).toBe('正在加载探测数据')
+    expect(rows[0]!.findAll('.np-segs i')[4]!.attributes('style')).toContain('--i: 4')
+    await wrapper.setProps({ history })
+    expect(probes().attributes('data-state')).toBe('fill')
+    expect(wrapper.findAll('.np-probe-name').map((n) => n.text())).toEqual(['电信', '联通', '移动'])
+    await wrapper.setProps({ history: { ...history } })
+    await nextTick()
+    expect(probes().attributes('data-state')).toBe('fill')
+  })
+  it('neither sweeps nor fills when the probes were already loaded or failed to load', () => {
+    expect(panel().find('.np-probes').attributes('data-state')).toBeUndefined()
+    const failed = panel({ history: undefined, unavailable: true })
+    expect(failed.find('.np-probes').attributes('data-state')).toBeUndefined()
+    expect(failed.find('.np-empty').text()).toBe('暂无探测任务')
   })
 })

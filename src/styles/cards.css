@@ -590,13 +590,16 @@
   initial-value: 1;
 }
 /* While the probes load, the empty segments light up from the left, one per tenth, and start over. */
-.strip-bar[data-state='loading'] {
+.strip-bar[data-state='loading'],
+.np-probes[data-state='loading'] {
   animation: strip-load 1.2s linear infinite;
 }
-.strip-bar[data-state='loading'] .strip-seg {
+.strip-bar[data-state='loading'] .strip-seg,
+.np-probes[data-state='loading'] .np-segs i {
   position: relative;
 }
-.strip-bar[data-state='loading'] .strip-seg::after {
+.strip-bar[data-state='loading'] .strip-seg::after,
+.np-probes[data-state='loading'] .np-segs i::after {
   content: '';
   position: absolute;
   inset: 0;
@@ -613,11 +616,13 @@
     --strip-load: 1;
   }
 }
-/* The first time the probes arrive, the coloured segments light up from the left. */
-.strip-bar[data-state='fill'] {
+/* The first time the probes arrive, the coloured segments light up from the left; the split panel shares both. */
+.strip-bar[data-state='fill'],
+.np-probes[data-state='fill'] {
   animation: strip-fill 0.7s ease-out both;
 }
-.strip-bar[data-state='fill'] .strip-seg {
+.strip-bar[data-state='fill'] .strip-seg,
+.np-probes[data-state='fill'] .np-segs i {
   opacity: clamp(0, calc((var(--strip-fill, 1) * 13 - var(--i)) / 3), 1);
 }
 @keyframes strip-fill {
@@ -818,6 +823,13 @@
 .np-box b {
   margin-right: 3px;
 }
+.np-box-label {
+  color: var(--muted);
+}
+.np-today b {
+  margin: 0;
+  font-weight: 700;
+}
 .np-down {
   color: var(--strip-down);
 }
@@ -910,6 +922,10 @@
   .np-boxes,
   .np-probes {
     grid-column: 1 / -1;
+  }
+  .np-boxes {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-flow: row;
   }
   .np-probe {
     grid-template-columns: 56px minmax(0, 1fr) 48px minmax(0, 1fr) 38px;

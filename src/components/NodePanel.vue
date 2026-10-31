@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { latencyColor, lossColor, probeBars, shownProbes, taskLoss } from '../domain/carriers'
 import { flagUrl } from '../domain/flags'
 import { remainingValue } from '../domain/fleet'
@@ -96,18 +96,44 @@ const expiry = computed(() => {
     value: left ? money(Number(left.amount.toFixed(2)), left.currency) : '—',
   }
 })
-// Each shown probe gets its own latency and loss segments, as on the detail page's carrier rows.
+// As on the card strip, the bars sweep while the probes load, then fill in from the left the first time they
+// arrive; probes already loaded when the panel mounts, refreshes and failed requests show as they are.
+const arrived = ref(false)
+watch(
+  () => props.history,
+  (now, before) => {
+    if (now && !before) arrived.value = true
+  },
+)
+const loading = computed(() => !props.history && !props.unavailable)
+const barState = computed(() => (loading.value ? 'loading' : arrived.value ? 'fill' : undefined))
+const EMPTY = Array.from({ length: 10 }, () => latencyColor(null))
+// Each shown probe gets its own latency and loss segments, as on the detail page's carrier rows; three empty
+// rows hold the place while the probes load.
 const probes = computed(() =>
-  shownProbes(props.history, props.nodeConfig, props.node.online, props.unavailable).map((p) => {
-    const b = probeBars(props.history, [p.taskId]),
-      loss = props.unavailable ? null : taskLoss(props.history, p.taskId)
-    return {
-      ...p,
-      loss,
-      latencyColors: b.latency.map(latencyColor),
-      lossColors: b.loss.map(lossColor),
-    }
-  }),
+  loading.value
+    ? [1, 2, 3].map((n) => ({
+        taskId: -n,
+        region: '—',
+        carrier: undefined,
+        color: undefined,
+        logo: undefined,
+        latency: null,
+        loss: null,
+        title: '正在加载探测数据',
+        latencyColors: EMPTY,
+        lossColors: EMPTY,
+      }))
+    : shownProbes(props.history, props.nodeConfig, props.node.online, props.unavailable).map((p) => {
+        const b = probeBars(props.history, [p.taskId]),
+          loss = props.unavailable ? null : taskLoss(props.history, p.taskId)
+        return {
+          ...p,
+          loss,
+          latencyColors: b.latency.map(latencyColor),
+          lossColors: b.loss.map(lossColor),
+        }
+      }),
 )
 </script>
 <template>
@@ -154,8 +180,17 @@ const probes = computed(() =>
         <span>{{ expiry.days }}</span>
         <span>{{ expiry.value }}</span>
       </div>
+      <!-- Hub-booked counters, so offline nodes keep today's figure, as on the card strip. -->
+      <div
+        v-if="showTraffic"
+        class="np-box np-today"
+        :title="`今日下行 ${bytes(node.day_rx)} · 今日上行 ${bytes(node.day_tx)}`"
+      >
+        <span class="np-box-label">今日流量</span>
+        <b>{{ bytes(node.day_rx + node.day_tx) }}</b>
+      </div>
     </div>
-    <div v-if="showCarriers" class="np-probes">
+    <div v-if="showCarriers" class="np-probes" :data-state="barState">
       <span v-if="!probes.length" class="np-empty">暂无探测任务</span>
       <div
         v-for="p in probes"
@@ -171,14 +206,14 @@ const probes = computed(() =>
           }}</span></span
         >
         <span class="np-segs" aria-hidden="true"
-          ><i v-for="(color, i) in p.latencyColors" :key="i" :style="{ background: color }"
+          ><i v-for="(color, i) in p.latencyColors" :key="i" :style="{ background: color, '--i': i }"
         /></span>
         <b class="np-probe-value"
           >{{ p.latency === null ? '—' : Number(p.latency.toFixed(1))
           }}<small v-if="p.latency !== null">ms</small></b
         >
         <span class="np-segs" aria-hidden="true"
-          ><i v-for="(color, i) in p.lossColors" :key="i" :style="{ background: color }"
+          ><i v-for="(color, i) in p.lossColors" :key="i" :style="{ background: color, '--i': i }"
         /></span>
         <b class="np-probe-value"
           >{{ p.loss === null ? '—' : p.loss.toFixed(1) }}<small v-if="p.loss !== null">%</small></b

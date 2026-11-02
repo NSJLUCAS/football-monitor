@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { normalizeNodes } from '../src/domain/normalize'
-import { DEFAULT_RATES, expiringSoon, fleetSummary, parseRates, remainingValue } from '../src/domain/fleet'
+import {
+  DEFAULT_RATES,
+  expiringSoon,
+  fleetSummary,
+  parseRates,
+  remainingValue,
+  todayTrafficTop,
+} from '../src/domain/fleet'
 
 const GB = 1024 ** 3
 function node(id: number, spec: Record<string, unknown> = {}, metrics: Record<string, number> | null = {}) {
@@ -159,5 +166,28 @@ describe('expiring soon', () => {
       [1, 35],
     ])
     expect(expiringSoon([node(1, { expires_in: undefined })])[0]!.days).toBeNull()
+  })
+})
+
+describe('today traffic top', () => {
+  it('ranks nodes by today’s traffic both ways, skipping idle ones, with shares of the busiest', () => {
+    const list = todayTrafficTop([
+      node(1, { day_rx: 2 * GB, day_tx: 0 }),
+      node(2, { day_rx: 3 * GB, day_tx: 1 * GB }),
+      node(3, { day_rx: 0, day_tx: 0 }),
+      node(4, { day_rx: 1 * GB, day_tx: 1 * GB }, null),
+      node(5, { day_rx: 0, day_tx: 1 * GB }),
+      node(6, { day_rx: 0, day_tx: 3 * GB }),
+      node(7, { day_rx: 512, day_tx: 0 }),
+    ])
+    // Ties go by name; offline nodes keep their Hub-booked figure; the sixth busiest is cut.
+    expect(list.map((e) => [e.node.id, e.total / GB, e.share])).toEqual([
+      [2, 4, 1],
+      [6, 3, 0.75],
+      [1, 2, 0.5],
+      [4, 2, 0.5],
+      [5, 1, 0.25],
+    ])
+    expect(todayTrafficTop([node(1, { day_rx: 0, day_tx: 0 })])).toEqual([])
   })
 })

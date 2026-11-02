@@ -101,9 +101,18 @@ test('dashboard renders all six skins and fits desktop, tablet, mobile and 320px
   await expect(page.getByRole('searchbox', { name: '搜索服务器' })).toBeFocused()
   await page.getByRole('searchbox', { name: '搜索服务器' }).blur()
   expect(await firstRowCount(page)).toBe(7)
+  // Today's traffic top five sits beside the expiry board on desktop, both under the tiles below 1200px.
+  await expect(page.locator('.traffic-board li')).toHaveCount(5)
+  const boardTops = () =>
+    page
+      .locator('.expiry-board, .traffic-board')
+      .evaluateAll((els) => els.map((e) => e.getBoundingClientRect().top))
   for (const width of [1440, 768, 390, 320]) {
     await page.setViewportSize({ width, height: width === 1440 ? 1080 : 900 })
     if (width <= 390) expect(await firstRowCount(page)).toBe(2)
+    const [expiryTop, trafficTop] = await boardTops()
+    if (width > 390) expect(trafficTop).toBe(expiryTop)
+    else expect(trafficTop).toBeGreaterThan(expiryTop!)
     await page.screenshot({ path: `${shots}/dashboard-${width}.png`, fullPage: true })
     expect(await noHorizontalOverflow(page)).toBe(true)
   }

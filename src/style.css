@@ -443,14 +443,18 @@ svg {
   white-space: nowrap;
 }
 
-/* Home page: overview tiles with the expiry board beside them, status filter + sort, dense grid. */
+/* Home page: overview tiles with the expiry and today's traffic boards beside them, status filter + sort,
+   dense grid. */
 .overview {
   display: grid;
   gap: 12px;
   margin-bottom: 16px;
 }
-.overview.with-board {
+.overview[data-boards='1'] {
   grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
+}
+.overview[data-boards='2'] {
+  grid-template-columns: minmax(0, 1fr) repeat(2, minmax(250px, 300px));
 }
 .summary-grid {
   display: grid;
@@ -506,10 +510,13 @@ svg {
   gap: 6px;
   min-width: 0;
 }
-.summary-bar {
+.summary-bar,
+.traffic-board {
   --tier-gold: #c99a06;
   --tier-silver: #94a3b8;
   --tier-bronze: #b4693a;
+}
+.summary-bar {
   display: flex;
   height: 5px;
   overflow: hidden;
@@ -580,13 +587,15 @@ svg {
 .summary-score {
   color: var(--primary-text);
 }
-.expiry-board {
+.expiry-board,
+.traffic-board {
   display: flex;
   flex-direction: column;
   min-width: 0;
   padding: 14px 16px;
 }
-.expiry-board h2 {
+.expiry-board h2,
+.traffic-board h2 {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -594,12 +603,14 @@ svg {
   font-size: 14px;
   font-weight: 700;
 }
-.expiry-board ol {
+.expiry-board ol,
+.traffic-board ol {
   margin: 0;
   padding: 0;
   list-style: none;
 }
-.expiry-board li + li {
+.expiry-board li + li,
+.traffic-board li + li {
   border-top: 1px solid var(--border);
 }
 .expiry-row {
@@ -651,6 +662,71 @@ svg {
   font-size: 11px;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.traffic-row {
+  display: grid;
+  grid-template-columns: 18px auto minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 8px;
+  row-gap: 6px;
+  padding: 8px 2px;
+  color: inherit;
+  text-decoration: none;
+}
+.traffic-row:hover .expiry-name {
+  color: var(--primary-text);
+}
+.traffic-row .expiry-flag {
+  grid-row: auto;
+  grid-column: 2;
+}
+.traffic-row .expiry-name {
+  grid-column: 3;
+}
+/* The top three take the score tiers' colours. */
+.traffic-rank {
+  grid-column: 1;
+  grid-row: span 2;
+  align-self: start;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+.traffic-rank[data-rank='1'],
+.traffic-rank[data-rank='2'],
+.traffic-rank[data-rank='3'] {
+  font-weight: 800;
+}
+.traffic-rank[data-rank='1'] {
+  color: var(--tier-gold);
+}
+.traffic-rank[data-rank='2'] {
+  color: var(--tier-silver);
+}
+.traffic-rank[data-rank='3'] {
+  color: var(--tier-bronze);
+}
+.traffic-total {
+  grid-column: 4;
+  font-size: 13px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.traffic-bar {
+  grid-column: 2 / -1;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--border);
+}
+.traffic-bar i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--primary);
 }
 .expiry-empty {
   margin: auto 0;
@@ -1543,6 +1619,12 @@ svg {
   .header-inner {
     gap: 20px;
   }
+  .overview[data-boards='2'] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .overview[data-boards='2'] .summary-grid {
+    grid-column: 1 / -1;
+  }
   /* Below 1200px the pill shows only its dot; the state text stays available to assistive technology. */
   .connection-pill > .connection-text {
     position: absolute;
@@ -1557,7 +1639,7 @@ svg {
   }
 }
 @media (max-width: 900px) {
-  .overview.with-board {
+  .overview[data-boards='1'] {
     grid-template-columns: minmax(0, 1fr);
   }
   .header-inner {
@@ -1602,6 +1684,9 @@ svg {
   }
 }
 @media (max-width: 639px) {
+  .overview[data-boards='2'] {
+    grid-template-columns: minmax(0, 1fr);
+  }
   .header-inner {
     flex-wrap: wrap;
     padding: 10px 18px;

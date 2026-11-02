@@ -266,6 +266,41 @@ describe('dashboard', () => {
     wrapper.unmount()
   })
 
+  it('ranks today’s traffic in its own board beside the expiry board, following the group tab', async () => {
+    const { wrapper, store } = await mountDashboard()
+    const GB = 1024 ** 3
+    const board = () => wrapper.find('.traffic-board')
+    expect(wrapper.find('.overview').attributes('data-boards')).toBe('2')
+    expect(board().find('.expiry-empty').text()).toBe('今天还没有节点产生流量')
+    const day: Record<number, [number, number]> = { 1: [1 * GB, 1 * GB], 2: [3 * GB, 1 * GB], 4: [0, 512] }
+    store.nodes = fixtures().map((n) => ({ ...n, day_rx: day[n.id]?.[0] ?? 0, day_tx: day[n.id]?.[1] ?? 0 }))
+    await flushPromises()
+    const rows = board().findAll('li')
+    expect(rows.map((r) => r.find('.expiry-name').text())).toEqual(['东京 B', '香港 A', '法兰克福 D'])
+    expect(rows.map((r) => r.find('.traffic-total').text())).toEqual(['4 GB', '2 GB', '512 B'])
+    expect(rows.map((r) => r.find('.traffic-rank').text())).toEqual(['1', '2', '3'])
+    expect(rows[1]!.find('.traffic-bar i').attributes('style')).toContain('width: 50%')
+    expect(rows[0]!.find('a').attributes('href')).toBe('/node/2')
+    expect(rows[0]!.find('a').attributes('title')).toBe('今日下行 3 GB · 今日上行 1 GB')
+    await wrapper
+      .findAll('.group-tabs button')
+      .find((b) => b.text() === '欧洲节点')!
+      .trigger('click')
+    expect(
+      board()
+        .findAll('.expiry-name')
+        .map((n) => n.text()),
+    ).toEqual(['法兰克福 D'])
+    store.config = { ...store.config, show_billing: false }
+    await flushPromises()
+    expect(wrapper.find('.overview').attributes('data-boards')).toBe('1')
+    store.config = { ...store.config, show_traffic: false }
+    await flushPromises()
+    expect(board().exists()).toBe(false)
+    expect(wrapper.find('.overview').attributes('data-boards')).toBe('0')
+    wrapper.unmount()
+  })
+
   it('shows the local time as a character clock beside the heading unless the clock is switched off', async () => {
     const { wrapper, store } = await mountDashboard()
     const clock = wrapper.find('.page-head-aside .ascii-clock')

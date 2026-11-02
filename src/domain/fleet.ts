@@ -118,3 +118,14 @@ export function expiringSoon(nodes: MonitorNode[], limit = 5) {
     .slice(0, limit)
     .map((node) => ({ node, days: node.expires_in ?? null }))
 }
+
+/** Nodes that moved traffic today, busiest first, each with its share of the busiest one for the bar. */
+export function todayTrafficTop(nodes: MonitorNode[], limit = 5) {
+  const ranked = nodes
+    .map((node) => ({ node, total: node.day_rx + node.day_tx }))
+    .filter((e) => e.total > 0)
+    .sort((a, b) => b.total - a.total || a.node.name.localeCompare(b.node.name, 'zh-CN'))
+    .slice(0, limit)
+  const top = ranked[0]?.total ?? 0
+  return ranked.map((e) => ({ ...e, share: e.total / top }))
+}

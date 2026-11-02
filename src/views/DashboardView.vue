@@ -3,6 +3,7 @@ import { computed, ref, watch, type Component } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import {
   CalendarClock,
+  ChartBarDecreasing,
   ChevronDown,
   ChevronsDown,
   ChevronsUp,
@@ -17,7 +18,7 @@ import {
 import { useMonitorStore } from '../stores/monitor'
 import { useCardView } from '../services/cardView'
 import { bytes, cycle, money, rate } from '../domain/format'
-import { expiringSoon, fleetSummary, parseRates } from '../domain/fleet'
+import { expiringSoon, fleetSummary, parseRates, todayTrafficTop } from '../domain/fleet'
 import { flagUrl } from '../domain/flags'
 import { nextTier, type Tier } from '../domain/score'
 import type { MonitorNode } from '../domain/types'
@@ -67,6 +68,8 @@ const summary = computed(() =>
   fleetSummary(grouped.value, parseRates(store.config.exchange_rates) ?? { CNY: 1 }),
 )
 const expiring = computed(() => expiringSoon(grouped.value))
+const trafficTop = computed(() => todayTrafficTop(grouped.value))
+const boards = computed(() => Number(store.config.show_billing) + Number(store.config.show_traffic))
 // "9.7 GB" -> ["9.7", "GB"]: big number, small unit.
 const split = (text: string) => {
   const i = text.lastIndexOf(' ')
@@ -245,11 +248,7 @@ const average = computed(() => {
     ><Button variant="outline" @click="store.bootstrap">重新检查</Button>
   </div>
   <template v-else>
-    <div
-      v-if="store.config.show_summary"
-      class="overview"
-      :class="{ 'with-board': store.config.show_billing }"
-    >
+    <div v-if="store.config.show_summary" class="overview" :data-boards="boards">
       <section class="summary-grid" aria-label="服务器汇总">
         <div v-for="t in tiles" :key="t.label" class="summary-stat panel">
           <span class="summary-stat-label">{{ t.label }}</span>
@@ -303,6 +302,32 @@ const average = computed(() => {
           </li>
         </ol>
         <p v-else class="expiry-empty">还没有设置到期日的节点</p>
+      </section>
+      <section v-if="store.config.show_traffic" class="traffic-board panel" aria-labelledby="traffic-title">
+        <h2 id="traffic-title"><ChartBarDecreasing :size="15" aria-hidden="true" />今日流量</h2>
+        <ol v-if="trafficTop.length">
+          <li v-for="(t, i) in trafficTop" :key="t.node.id">
+            <RouterLink
+              :to="`/node/${t.node.id}`"
+              class="traffic-row"
+              :title="`今日下行 ${bytes(t.node.day_rx)} · 今日上行 ${bytes(t.node.day_tx)}`"
+            >
+              <span class="traffic-rank" :data-rank="i + 1">{{ i + 1 }}</span>
+              <img
+                v-if="t.node.country && flagUrl(t.node.country)"
+                class="expiry-flag"
+                :src="flagUrl(t.node.country)"
+                alt=""
+              />
+              <span class="expiry-name">{{ t.node.name }}</span>
+              <span class="traffic-total">{{ bytes(t.total) }}</span>
+              <span class="traffic-bar" aria-hidden="true"
+                ><i :style="{ width: `${t.share * 100}%` }"
+              /></span>
+            </RouterLink>
+          </li>
+        </ol>
+        <p v-else class="expiry-empty">今天还没有节点产生流量</p>
       </section>
     </div>
     <section id="squad" class="squad-section" aria-label="节点列表">

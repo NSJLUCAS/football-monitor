@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
-import { RefreshCw, Settings2 } from '@lucide/vue'
+import { Activity, Clock, RefreshCw, Settings2, Tag } from '@lucide/vue'
 import { useMonitorStore } from '../stores/monitor'
 import {
   bytes,
@@ -326,16 +326,39 @@ const pct = (loss: number) => `${Number(loss.toFixed(1))}%`
               >
             </li>
           </ul>
-          <p>
-            延迟是节点向目标发起 TCP 连接的握手时延，不保证等于访客到 VPS 的访问延迟。丢包是近
-            {{ windowLabel(hours) }}内探测失败的比例（随下方“历史表现”的时间范围切换），0%
-            即没有丢包。线路名称由站长配置。
-          </p>
-          <p v-if="otherLoss.length">
-            其他探测任务：<span v-for="o in otherLoss" :key="o.id" class="carrier-other-loss"
-              >{{ o.name }} 丢包 {{ pct(o.loss) }}（{{ lossGrade(o.loss) }}）</span
-            >
-          </p>
+          <div v-if="otherLoss.length" class="carrier-others">
+            <h3>其他探测任务</h3>
+            <ul>
+              <li
+                v-for="o in otherLoss"
+                :key="o.id"
+                class="carrier-other-loss"
+                :style="{ '--loss': lossColor(o.loss) }"
+                :title="`近 ${windowLabel(hours)}内探测失败的比例`"
+              >
+                <span>{{ o.name }}</span> <b>{{ pct(o.loss) }}</b
+                ><em>{{ lossGrade(o.loss) }}</em>
+              </li>
+            </ul>
+          </div>
+          <ul class="carrier-notes">
+            <li>
+              <Clock :size="16" aria-hidden="true" /><span
+                ><strong>延迟</strong>节点向目标发起 TCP 连接的握手时延，不等于访客到 VPS 的访问延迟</span
+              >
+            </li>
+            <li>
+              <Activity :size="16" aria-hidden="true" /><span
+                ><strong>丢包</strong>近
+                {{ windowLabel(hours) }}内探测失败的比例，随“历史表现”的时间范围切换，0% 即没有丢包</span
+              >
+            </li>
+            <li>
+              <Tag :size="16" aria-hidden="true" /><span
+                ><strong>线路名称</strong>由站长配置，不自动推断</span
+              >
+            </li>
+          </ul>
         </section>
         <section v-if="score" id="score" class="detail-section detail-score panel" aria-label="评分明细">
           <ScoreBreakdown

@@ -243,6 +243,30 @@ describe('node detail page', () => {
     expect(panel.text()).toContain('1.5%')
   })
 
+  it('shows unmapped probes as graded chips and explains the section in three short notes', async () => {
+    const { wrapper } = await mountDetail((store) => {
+      vi.spyOn(store.history, 'get').mockResolvedValue({
+        ...history(),
+        probes: { '11': '上海电信 TCP', '12': '广东电信-V6', '13': '广东移动-V6' },
+        loss: { '11': 1.5, '12': 9.4, '13': 0.6 },
+      })
+    })
+    const chips = wrapper.findAll('.carrier-others li')
+    expect(chips.map((c) => c.find('span').text())).toEqual(['广东电信-V6', '广东移动-V6'])
+    expect(chips.map((c) => c.find('b').text())).toEqual(['9.4%', '0.6%'])
+    expect(chips.map((c) => c.find('em').text())).toEqual(['偏高', '极少'])
+    expect(chips[0]!.attributes('style')).toContain('--loss')
+    const notes = wrapper.findAll('.carrier-notes li')
+    expect(notes.map((n) => n.find('strong').text())).toEqual(['延迟', '丢包', '线路名称'])
+    expect(notes[1]!.text()).toContain('近 6 小时内探测失败的比例')
+  })
+
+  it('leaves out the other-probe chips when every probe has a carrier row', async () => {
+    const { wrapper } = await mountDetail()
+    expect(wrapper.find('.carrier-others').exists()).toBe(false)
+    expect(wrapper.findAll('.carrier-notes li')).toHaveLength(3)
+  })
+
   it('breaks the network score into three meters and keeps the resource readings', async () => {
     const { wrapper, get } = await mountDetail()
     expect(get).toHaveBeenCalledWith(103, 24, 'ping', false, 3)

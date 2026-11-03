@@ -43,7 +43,8 @@ const mean = (values: (number | null)[]) => {
 // Linear from full marks at `best` to zero at `worst`.
 const scale = (value: number | null, best: number, worst: number) =>
   value === null ? null : Math.min(100, Math.max(0, (100 * (worst - value)) / (worst - best)))
-function summarize(taskId: number, history: HistoryResponse): ProbeSummary {
+/** Latency, jitter and loss of one Hub probe over a history window; shared with the network page. */
+export function probeSummary(taskId: number, history: HistoryResponse): ProbeSummary {
   const points = history.ping.filter((p) => p.task_id === taskId),
     readings = points.flatMap((p) => (p.latency === null ? [] : [p.latency]))
   // Hub's band is the spread inside a bucket; without one, use the change between readings.
@@ -65,7 +66,7 @@ export function networkScore(node: MonitorNode, history?: HistoryResponse): Node
       .sort((a, b) => a - b)
       .slice(0, 3)
   if (!ids.length) return emptyScore()
-  const probes = ids.map((id) => summarize(id, history))
+  const probes = ids.map((id) => probeSummary(id, history))
   const values: Record<NetKey, number | null> = {
     latency: mean(probes.map((p) => p.latency)),
     jitter: mean(probes.map((p) => p.jitter)),

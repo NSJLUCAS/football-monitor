@@ -174,9 +174,10 @@ export const lossGrade = (percent: number) =>
   percent <= 0 ? '无丢包' : percent < 1 ? '极少' : percent < 3 ? '轻微' : percent < 10 ? '偏高' : '严重'
 const EMPTY_SEGMENT = 'var(--strip-empty-seg)'
 const GRADES = ['#4ade80', '#a3e635', '#facc15', '#fb923c', '#f87171']
-export const latencyColor = (ms: number | null) =>
-  ms === null ? EMPTY_SEGMENT : GRADES[[60, 120, 200, 300].filter((limit) => ms > limit).length]!
-export const lossColor = (percent: number | null) =>
-  percent === null
-    ? EMPTY_SEGMENT
-    : GRADES[percent <= 0 ? 0 : percent < 1 ? 1 : percent < 3 ? 2 : percent < 10 ? 3 : 4]!
+/** Grade 0 (best) to 4 of a latency (ms) or a loss (%), on the lines the colours below use. */
+export const latencyLevel = (ms: number) => [60, 120, 200, 300].filter((limit) => ms > limit).length
+export const lossLevel = (percent: number) =>
+  percent <= 0 ? 0 : percent < 1 ? 1 : percent < 3 ? 2 : percent < 10 ? 3 : 4
+export const levelColor = (level: number | null) => (level === null ? EMPTY_SEGMENT : GRADES[level]!)
+export const latencyColor = (ms: number | null) => levelColor(ms === null ? null : latencyLevel(ms))
+export const lossColor = (percent: number | null) => levelColor(percent === null ? null : lossLevel(percent))

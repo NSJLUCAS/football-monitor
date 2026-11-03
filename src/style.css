@@ -217,6 +217,10 @@ svg {
 .main-nav .active {
   color: var(--foreground);
 }
+/* The network page's own header icon stands in for the main navigation on phones only. */
+.header-actions .network-link {
+  display: none;
+}
 .main-nav .active::after {
   content: '';
   position: absolute;
@@ -1750,6 +1754,19 @@ svg {
     grid-template-columns: 1fr;
   }
 }
+/* Below tablet width the brand, three nav links and the actions fill the row; the search takes its own. */
+@media (max-width: 767px) {
+  .header-inner {
+    flex-wrap: wrap;
+    padding: 10px 24px;
+    gap: 10px 16px;
+  }
+  .header-search {
+    order: 3;
+    flex-basis: 100%;
+    max-width: none;
+  }
+}
 @media (max-width: 639px) {
   .carrier-notes {
     grid-template-columns: minmax(0, 1fr);
@@ -1772,6 +1789,9 @@ svg {
   }
   .main-nav {
     display: none;
+  }
+  .header-actions .network-link {
+    display: inline-flex;
   }
   .header-search {
     order: 3;

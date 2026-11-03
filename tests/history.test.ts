@@ -64,6 +64,31 @@ describe('on demand bounded history', () => {
     await Promise.all(all)
     expect(started).toEqual(['8/1', '5/24', '7/24', '9/1', '6/1', '1/24', '2/24', '3/24', '4/24'])
   })
+  it('drops queued requests that no longer matter without starting them', async () => {
+    const gates: (() => void)[] = []
+    const get = vi.fn(() => new Promise((r) => gates.push(() => r(value))))
+    const repo = new HistoryRepository(get)
+    const old = [1, 2, 3, 4, 5].map((id) => repo.get(id, 6, 'ping'))
+    const kept = repo.get(6, 168, 'ping')
+    await Promise.resolve()
+    expect(get).toHaveBeenCalledTimes(3)
+    repo.drop((_id, hours) => hours === 6)
+    await expect(old[3]).rejects.toThrow('历史查询已取消')
+    await expect(old[4]).rejects.toThrow('历史查询已取消')
+    gates.splice(0).forEach((open) => open())
+    await Promise.all(old.slice(0, 3))
+    await new Promise((r) => setTimeout(r))
+    gates.splice(0).forEach((open) => open())
+    await kept
+    // Only the week's request took the freed slot; the dropped ones never reached the Hub.
+    expect(get.mock.calls.map((c) => (c as unknown as string[])[0])).toHaveLength(4)
+    expect((get.mock.calls[3] as unknown as string[])[0]).toContain('nodes/6/metrics?hours=168')
+    // Asking again later starts afresh.
+    const again = repo.get(4, 6, 'ping')
+    await new Promise((r) => setTimeout(r))
+    gates.splice(0).forEach((open) => open())
+    await expect(again).resolves.toEqual(expect.objectContaining({ step: 60 }))
+  })
   it('retries a request the Hub turned away as busy, then gives up', async () => {
     vi.useFakeTimers()
     const busy = () => Promise.reject(new ApiError(503, '查询历史的请求太多，稍后再试'))

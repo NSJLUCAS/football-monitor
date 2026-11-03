@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch, watchEffect } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
-import { Sun, Moon, Settings2, ArrowUpRight, Search, LayoutGrid, LayoutList } from '@lucide/vue'
+import { Activity, Sun, Moon, Settings2, ArrowUpRight, Search, LayoutGrid, LayoutList } from '@lucide/vue'
 import { useMonitorStore } from './stores/monitor'
 import { useCardView } from './services/cardView'
 import manifest from '../theme.json'
@@ -36,7 +36,8 @@ watchEffect(() => {
   document.documentElement.classList.toggle('dark', dark.value)
   document.documentElement.dataset.motion = String(store.config.motion)
 })
-// The header search mirrors `?q=`: it filters the home page live and jumps back there from other pages.
+// The header search mirrors `?q=`: it filters the home and network pages live and jumps home from the others.
+const filtersInPlace = () => route.path === '/' || route.path === '/network'
 const search = ref('')
 watch(
   () => route.query.q,
@@ -47,7 +48,7 @@ watch(
 )
 function onSearchInput(event: Event) {
   search.value = (event.target as HTMLInputElement).value
-  if (route.path !== '/') return
+  if (!filtersInPlace()) return
   const query = { ...route.query }
   if (search.value) query.q = search.value
   else delete query.q
@@ -56,7 +57,7 @@ function onSearchInput(event: Event) {
 function onSearchEnter(event: KeyboardEvent) {
   // Enter also confirms a Chinese IME candidate; only a finished query should navigate.
   if (event.isComposing || event.keyCode === 229) return
-  if (route.path !== '/') void router.push({ path: '/', query: search.value ? { q: search.value } : {} })
+  if (!filtersInPlace()) void router.push({ path: '/', query: search.value ? { q: search.value } : {} })
 }
 function searchShortcut(event: KeyboardEvent) {
   const target = event.target as HTMLElement | null
@@ -104,7 +105,8 @@ const connectionText = computed(
       >
       <nav class="main-nav" aria-label="主导航">
         <RouterLink to="/" exact-active-class="active">首页</RouterLink
-        ><RouterLink to="/#squad">服务器</RouterLink>
+        ><RouterLink to="/#squad">服务器</RouterLink
+        ><RouterLink to="/network" active-class="active">网络质量</RouterLink>
       </nav>
       <label class="header-search"
         ><Search :size="15" /><input
@@ -123,6 +125,15 @@ const connectionText = computed(
           ><i aria-hidden="true" /><span class="connection-text">{{ connectionText }}</span></span
         ><Button v-if="store.me?.authed" variant="ghost" size="icon" as-child aria-label="主题设置"
           ><RouterLink to="/settings"><Settings2 :size="18" /></RouterLink></Button
+        ><Button
+          v-if="route.path !== '/network'"
+          variant="ghost"
+          size="icon"
+          class="network-link"
+          as-child
+          aria-label="网络质量"
+          title="网络质量"
+          ><RouterLink to="/network"><Activity :size="18" /></RouterLink></Button
         ><Button
           v-if="route.path === '/' && !store.closed"
           variant="ghost"

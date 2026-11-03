@@ -9,6 +9,7 @@ export const router = createRouter({
       component: () => import('./views/NodeDetailView.vue'),
       meta: { title: '节点详情' },
     },
+    { path: '/network', component: () => import('./views/NetworkView.vue'), meta: { title: '网络质量' } },
     { path: '/settings', component: () => import('./views/SettingsView.vue'), meta: { title: '主题设置' } },
     { path: '/:pathMatch(.*)*', redirect: '/' },
   ],

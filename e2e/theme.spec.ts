@@ -242,6 +242,46 @@ test('search, groups and detail history work', async ({ page }) => {
   await page.screenshot({ path: `${shots}/node-detail-390.png`, fullPage: true })
   expect(await noHorizontalOverflow(page)).toBe(true)
 })
+test('network quality page lists every node and fits desktop and phones', async ({ page }) => {
+  const errors: string[] = []
+  page.on('pageerror', (e) => errors.push(e.message))
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await page.goto('/')
+  await page.getByRole('navigation', { name: '主导航' }).getByRole('link', { name: '网络质量' }).click()
+  await expect(page).toHaveURL(/\/network$/)
+  await expect(page.getByRole('heading', { level: 1, name: '网络质量' })).toBeVisible()
+  const total = Number(await page.locator('.group-tabs button small').first().textContent())
+  await expect(page.locator('.network-row')).toHaveCount(total)
+  await expect(page.locator('.network-summary .quality-bar i')).toHaveCount(24)
+  await expect(page.locator('.network-row .quality-bar[data-state="loading"]')).toHaveCount(0)
+  await page.screenshot({ path: `${shots}/network-1440.png`, fullPage: true })
+  await page.getByRole('button', { name: '7 天', exact: true }).click()
+  await expect(page).toHaveURL(/hours=168/)
+  await expect(page.locator('.network-row')).toHaveCount(total)
+  await page.locator('.network-row', { hasText: 'JP-Tokyo' }).click()
+  await expect(page).toHaveURL(/\/node\/103#carriers$/)
+  await expect(page.locator('#carriers')).toBeInViewport()
+  // Between the phone layout and tablet width the header must not push the page sideways.
+  for (const path of ['/', '/network', '/node/103']) {
+    for (const width of [700, 660]) {
+      await page.setViewportSize({ width, height: 900 })
+      await page.goto(path)
+      await expect(page.locator('.site-header')).toBeVisible()
+      expect(await noHorizontalOverflow(page), `${path} at ${width}px`).toBe(true)
+    }
+  }
+  for (const width of [390, 320]) {
+    await page.setViewportSize({ width, height: 844 })
+    await page.goto('/')
+    await page.locator('header .network-link').click()
+    await expect(page).toHaveURL(/\/network$/)
+    await expect(page.locator('.network-row')).toHaveCount(total)
+    expect(await noHorizontalOverflow(page)).toBe(true)
+    if (width === 390) await page.screenshot({ path: `${shots}/network-390.png`, fullPage: true })
+  }
+  expect(errors).toEqual([])
+})
+
 test('settings preserves Hub keys, saves a node override and restores after reload', async ({
   page,
   request,

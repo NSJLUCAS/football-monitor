@@ -14,6 +14,9 @@ describe('router scroll behaviour', () => {
     expect(scroll(at('/node/1'), at('/', { q: 'x' }), null)).toEqual({ top: 0 })
     expect(scroll(at('/node/1', {}, '#score'), at('/'), null)).toEqual({ el: '#score', top: 20 })
   })
+  it('registers the network page', () => {
+    expect(router.getRoutes().some((r) => r.path === '/network')).toBe(true)
+  })
   it('has no About page route', () => {
     expect(router.getRoutes().some((r) => r.path === '/about')).toBe(false)
   })

@@ -82,6 +82,7 @@ function makeRouter(): Router {
     routes: [
       { path: '/', component: DashboardView },
       { path: '/node/:id', component: { template: '<div />' } },
+      { path: '/network', component: { template: '<div />' } },
       { path: '/settings', component: { template: '<div />' } },
     ],
   })
@@ -395,6 +396,31 @@ describe('top bar search', () => {
     await input.setValue('')
     await flushPromises()
     expect('q' in router.currentRoute.value.query).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('links the network page from the header and from a phone icon', async () => {
+    const { wrapper, router } = await mountApp('/')
+    const nav = wrapper.find('.main-nav a[href="/network"]')
+    expect(nav.text()).toBe('网络质量')
+    expect(wrapper.find('header .network-link').attributes('aria-label')).toBe('网络质量')
+    await router.push('/network')
+    await flushPromises()
+    expect(wrapper.find('header .network-link').exists()).toBe(false)
+    expect(wrapper.find('.main-nav a[href="/network"]').classes()).toContain('active')
+    wrapper.unmount()
+  })
+
+  it('filters in place on the network page', async () => {
+    const { wrapper, router } = await mountApp('/network')
+    const input = wrapper.find<HTMLInputElement>('header input#node-search')
+    await input.setValue('东京')
+    await flushPromises()
+    expect(router.currentRoute.value.path).toBe('/network')
+    expect(router.currentRoute.value.query.q).toBe('东京')
+    await input.trigger('keydown', { key: 'Enter' })
+    await flushPromises()
+    expect(router.currentRoute.value.path).toBe('/network')
     wrapper.unmount()
   })
 

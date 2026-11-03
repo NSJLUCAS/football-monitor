@@ -14,6 +14,7 @@ interface Job {
   priority: Priority
   order: number
   run: () => void
+  cancel: () => void
 }
 const keyOf = (id: number, hours: number, series: Series) => `${id}/${hours}/${series}`
 // The Hub answers 503 at once when its four history slots are taken, by any visitor.
@@ -81,7 +82,10 @@ export class HistoryRepository {
         } catch (e) {
           // A busy Hub is asked again shortly, keeping the request's place in line.
           if (e instanceof ApiError && e.status === 503 && attempt < RETRIES)
-            setTimeout(() => this.enqueue(key, priority, () => void job(attempt + 1)), retryDelay(attempt))
+            setTimeout(
+              () => this.enqueue(key, priority, () => void job(attempt + 1), cancel),
+              retryDelay(attempt),
+            )
           else reject(e)
         } finally {
           this.controllers.delete(controller)
@@ -89,7 +93,8 @@ export class HistoryRepository {
           this.pump()
         }
       }
-      this.enqueue(key, priority, () => void job(0))
+      const cancel = () => reject(new Error('历史查询已取消'))
+      this.enqueue(key, priority, () => void job(0), cancel)
     }).finally(() => {
       if (this.pending.get(key) === promise) this.pending.delete(key)
     })
@@ -104,10 +109,19 @@ export class HistoryRepository {
       job.order = this.queued++
     }
   }
+  /** Drops queued requests that no longer matter (a window the page left); those already running finish. */
+  drop(match: (id: number, hours: number, series: Series) => boolean) {
+    const dropped = this.queue.filter((j) => {
+      const [id, hours, series] = j.key.split('/')
+      return match(Number(id), Number(hours), series as Series)
+    })
+    this.queue = this.queue.filter((j) => !dropped.includes(j))
+    for (const job of dropped) job.cancel()
+  }
   // Requests queued in one go (the start-up prefetch, a page of cards) start together on the next
   // microtask, so priority decides the order rather than which was asked for first.
-  private enqueue(key: string, priority: Priority, run: () => void) {
-    this.queue.push({ key, priority, order: this.queued++, run })
+  private enqueue(key: string, priority: Priority, run: () => void, cancel: () => void) {
+    this.queue.push({ key, priority, order: this.queued++, run, cancel })
     if (this.scheduled) return
     this.scheduled = true
     queueMicrotask(() => {

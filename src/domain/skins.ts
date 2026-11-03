@@ -266,13 +266,14 @@ export const resolveSkin = (template: TemplateId, tier: Tier): Skin =>
 
 /** The theme gallery's demo hub always answers an empty config, so there nodes show every face in turn. */
 const PREVIEW_HOST = /(^|\.)monitor-themes\.pages\.dev$/
+export const onPreviewHost = (host = globalThis.location?.hostname ?? '') => PREVIEW_HOST.test(host)
 export function nodeTemplate(
   config: ThemeConfig,
   nodeId: number,
   host = globalThis.location?.hostname ?? '',
 ): TemplateId {
   const template = config.nodes[String(nodeId)]?.template ?? config.default_template
-  if (template !== 'auto' || !PREVIEW_HOST.test(host)) return template
+  if (template !== 'auto' || !onPreviewHost(host)) return template
   return skins[(((nodeId - 1) % skins.length) + skins.length) % skins.length]!.id
 }
 

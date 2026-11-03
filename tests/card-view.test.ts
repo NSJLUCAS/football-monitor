@@ -1,6 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
-import { clearVisitorView, saveVisitorView, useCardView, visitorView } from '../src/services/cardView'
+import {
+  clearVisitorView,
+  saveVisitorView,
+  siteView,
+  useCardView,
+  visitorView,
+} from '../src/services/cardView'
 import { useMonitorStore } from '../src/stores/monitor'
 
 const KEY = 'football-monitor:card-view'
@@ -8,6 +14,7 @@ beforeEach(() => setActivePinia(createPinia()))
 afterEach(() => {
   localStorage.removeItem(KEY)
   vi.restoreAllMocks()
+  vi.unstubAllGlobals()
 })
 
 describe('visitor card view', () => {
@@ -50,5 +57,23 @@ describe('visitor card view', () => {
     expect(view.value).toBe('stacked')
     clearVisitorView()
     expect(view.value).toBe('split')
+  })
+  it('opens the theme gallery demo, which has no settings, on the split view', () => {
+    const config = useMonitorStore().config
+    expect(siteView(config, 'football-monitor.monitor-themes.pages.dev')).toBe('split')
+    expect(siteView(config, 'monitor-themes.pages.dev')).toBe('split')
+    expect(siteView(config, 'status.example.com')).toBe('stacked')
+    expect(siteView(config, 'monitor-themes.pages.dev.example.com')).toBe('stacked')
+    expect(siteView({ ...config, card_view: 'split' }, 'status.example.com')).toBe('split')
+  })
+  it('lets a demo visitor switch back to the stacked view', () => {
+    vi.stubGlobal('location', { hostname: 'football-monitor.monitor-themes.pages.dev' })
+    // A pick made before the demo opened on the split view no longer applies.
+    saveVisitorView('split', 'stacked')
+    const { view, toggle } = useCardView()
+    expect(view.value).toBe('split')
+    toggle()
+    expect(view.value).toBe('stacked')
+    expect(JSON.parse(localStorage.getItem(KEY)!)).toEqual({ view: 'stacked', site: 'split' })
   })
 })

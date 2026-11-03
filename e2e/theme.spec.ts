@@ -71,6 +71,19 @@ const firstRowCount = async (page: Page) => {
 }
 const noHorizontalOverflow = (page: Page) =>
   page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)
+/** The split panel's probe rows: the narrowest colour bar, and whether any two parts of a row overlap. */
+const probeLayout = (page: Page) =>
+  page.locator('.np-probe').evaluateAll((rows) => {
+    const rects = rows.map((r) => [...r.children].map((c) => c.getBoundingClientRect()))
+    const hit = (a: DOMRect, b: DOMRect) =>
+      a.left < b.right - 0.5 && b.left < a.right - 0.5 && a.top < b.bottom - 0.5 && b.top < a.bottom - 0.5
+    return {
+      narrowestBar: Math.min(
+        ...rows.flatMap((r) => [...r.querySelectorAll('.np-segs')].map((s) => s.clientWidth)),
+      ),
+      overlap: rects.some((parts) => parts.some((a, i) => parts.slice(i + 1).some((b) => hit(a, b)))),
+    }
+  })
 async function saveSettings(page: Page) {
   await page.getByRole('button', { name: '保存到 Hub' }).click()
   await expect(page.locator('.save-feedback.success')).toContainText('已保存到 Hub')
@@ -187,11 +200,18 @@ test('split view puts a data panel beside each card and visitors can switch back
   await expect(page.locator('.card-live-strip')).toHaveCount(0)
   await expect(page.locator('.np-probe').first()).toBeVisible()
   expect(await firstRowCount(page)).toBe(3)
+  // Narrow panels put each probe's figures above its two bars, so the bars never shrink to a few ticks.
+  const wide = await probeLayout(page)
+  expect(wide.overlap).toBe(false)
+  expect(wide.narrowestBar).toBeGreaterThanOrEqual(80)
   await page.screenshot({ path: `${shots}/dashboard-split-1440.png`, fullPage: true })
-  for (const width of [768, 390, 320]) {
+  for (const width of [1024, 768, 390, 320]) {
     await page.setViewportSize({ width, height: 900 })
-    expect(await firstRowCount(page)).toBe(1)
+    if (width < 1024) expect(await firstRowCount(page)).toBe(1)
     expect(await noHorizontalOverflow(page)).toBe(true)
+    const layout = await probeLayout(page)
+    expect(layout.overlap, `${width}px`).toBe(false)
+    expect(layout.narrowestBar, `${width}px`).toBeGreaterThanOrEqual(80)
   }
   await page.screenshot({ path: `${shots}/dashboard-split-320.png`, fullPage: true })
   // A visitor's own pick outlasts a reload; the site setting stays as saved.

@@ -1,5 +1,6 @@
 import { computed, ref } from 'vue'
-import type { CardView } from '../domain/types'
+import { onPreviewHost } from '../domain/skins'
+import type { CardView, ThemeConfig } from '../domain/types'
 import { useMonitorStore } from '../stores/monitor'
 
 /**
@@ -36,15 +37,19 @@ export function clearVisitorView() {
   }
   picks.value++
 }
+/** The site's card view; the theme gallery's demo, which has no settings to read, opens on the split view. */
+export const siteView = (config: ThemeConfig, host?: string): CardView =>
+  onPreviewHost(host) ? 'split' : config.card_view
 // Storage is not reactive; every change bumps this so the header button and the home page agree.
 const picks = ref(0)
 /** The card view the home page shows, and a toggle between the two; the config may arrive after mount. */
 export function useCardView() {
   const store = useMonitorStore()
+  const site = computed(() => siteView(store.config))
   const view = computed(() => {
     void picks.value
-    return visitorView(store.config.card_view) ?? store.config.card_view
+    return visitorView(site.value) ?? site.value
   })
-  const toggle = () => saveVisitorView(view.value === 'split' ? 'stacked' : 'split', store.config.card_view)
+  const toggle = () => saveVisitorView(view.value === 'split' ? 'stacked' : 'split', site.value)
   return { view, toggle }
 }

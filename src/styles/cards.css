@@ -837,6 +837,7 @@
   color: var(--strip-up);
 }
 .np-probes {
+  container: np-probes / inline-size;
   display: grid;
   gap: 5px;
   padding-top: 8px;
@@ -930,5 +931,33 @@
   .np-probe {
     grid-template-columns: 56px minmax(0, 1fr) 48px minmax(0, 1fr) 38px;
     gap: 6px;
+  }
+}
+/* Too narrow for one line (three cards a row on desktop, most phones): the name and both figures on top,
+   each figure over the right end of its own bar, and the two bars side by side below. */
+@container np-probes (max-width: 379px) {
+  .np-probes {
+    gap: 8px;
+  }
+  .np-probe {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 3px 12px;
+  }
+  .np-probe-name {
+    grid-area: 1 / 1;
+    max-width: calc(100% - 56px);
+  }
+  .np-probe-value {
+    grid-row: 1;
+    justify-self: end;
+  }
+  .np-probe-value:nth-of-type(1) {
+    grid-column: 1;
+  }
+  .np-probe-value:nth-of-type(2) {
+    grid-column: 2;
+  }
+  .np-segs {
+    grid-row: 2;
   }
 }

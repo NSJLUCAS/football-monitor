@@ -32,8 +32,7 @@ const store = useMonitorStore(),
   route = useRoute(),
   router = useRouter(),
   group = ref<string | null>(null),
-  status = ref<Status>('all'),
-  sort = ref<Sort>('hub')
+  status = ref<Status>('all')
 const statuses: { id: Status; label: string }[] = [
   { id: 'all', label: '全部' },
   { id: 'online', label: '在线' },
@@ -42,6 +41,17 @@ const statuses: { id: Status; label: string }[] = [
 const { view } = useCardView()
 const crumbs = [{ label: 'Football Monitor', to: '/' }, { label: '首页' }]
 const search = computed(() => (typeof route.query.q === 'string' ? route.query.q : ''))
+const SORTS: Sort[] = ['hub', 'score', 'name']
+// Kept in `?sort=` beside the search, so a refresh or a shared link keeps the order; Hub order leaves it out.
+const sort = computed<Sort>({
+  get: () => SORTS.find((s) => s === route.query.sort) ?? 'hub',
+  set: (value) => {
+    const query = { ...route.query }
+    if (value === 'hub') delete query.sort
+    else query.sort = value
+    void router.replace({ query })
+  },
+})
 function clearFilters() {
   group.value = null
   status.value = 'all'

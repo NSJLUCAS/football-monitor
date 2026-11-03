@@ -160,6 +160,18 @@ describe('node detail page', () => {
     expect(get).toHaveBeenCalledWith(103, 6, 'all', false)
   })
 
+  it('names the node in the tab title, also after a hash jump resets it', async () => {
+    const { wrapper } = await mountDetail()
+    expect(document.title).toBe('东京 Prime · Football Monitor')
+    const router = wrapper.vm.$router
+    router.afterEach(() => {
+      document.title = '节点详情 · Football Monitor'
+    })
+    await router.push('/node/103#carriers')
+    await flushPromises()
+    expect(document.title).toBe('东京 Prime · Football Monitor')
+  })
+
   it('draws the disk history in a colour readable on light and dark panels', async () => {
     const { wrapper } = await mountDetail()
     const disk = wrapper.findAllComponents(HistoryChart).find((c) => c.props('title') === '硬盘使用率')!

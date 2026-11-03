@@ -69,6 +69,14 @@ watch(
   },
   { immediate: true },
 )
+// The tab names the node; the router's generic title lands first on every navigation, hash jumps included.
+watch(
+  [() => node.value?.name, () => route.fullPath],
+  ([name]) => {
+    if (name) document.title = `${name} · Football Monitor`
+  },
+  { immediate: true },
+)
 const timer = setInterval(() => {
   if (!document.hidden && !store.closed) void load()
 }, 60000)

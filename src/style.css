@@ -221,6 +221,12 @@ svg {
 .header-actions .network-link {
   display: none;
 }
+/* The ops wall is for large screens; below desktop width its entry would push the header sideways. */
+@media (max-width: 899px) {
+  .main-nav .ops-link {
+    display: none;
+  }
+}
 .main-nav .active::after {
   content: '';
   position: absolute;

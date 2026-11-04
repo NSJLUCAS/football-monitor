@@ -101,7 +101,7 @@ describe('realtime lifecycle', () => {
     expect(seen).toEqual(['new'])
     rt.stop()
   })
-  it('caps socket reconnection attempts while retaining HTTP fallback', async () => {
+  it('backs off socket reconnection, then keeps trying every minute while polling', async () => {
     vi.useFakeTimers()
     const socket = vi.fn(() => {
       throw new Error('full')
@@ -113,8 +113,14 @@ describe('realtime lifecycle', () => {
       onNodes: vi.fn(),
     })
     rt.start()
-    await vi.advanceTimersByTimeAsync(600000)
+    // 5 + 10 + 20 + 40 + 60 × 4 seconds: the first connection and eight backed-off retries.
+    await vi.advanceTimersByTimeAsync(315000)
     expect(socket).toHaveBeenCalledTimes(9)
+    // A wall left open for days still gets its live connection back.
+    await vi.advanceTimersByTimeAsync(59000)
+    expect(socket).toHaveBeenCalledTimes(9)
+    await vi.advanceTimersByTimeAsync(1000 + 3 * 60000)
+    expect(socket).toHaveBeenCalledTimes(13)
     rt.stop()
     expect(vi.getTimerCount()).toBe(0)
   })

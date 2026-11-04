@@ -17,6 +17,10 @@ describe('router scroll behaviour', () => {
   it('registers the network page', () => {
     expect(router.getRoutes().some((r) => r.path === '/network')).toBe(true)
   })
+  it('registers the ops wall without the site header', () => {
+    const ops = router.getRoutes().find((r) => r.path === '/ops')
+    expect(ops?.meta).toMatchObject({ title: '运维模式', bare: true })
+  })
   it('has no About page route', () => {
     expect(router.getRoutes().some((r) => r.path === '/about')).toBe(false)
   })

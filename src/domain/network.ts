@@ -45,7 +45,7 @@ const mean = (values: (number | null)[]) => {
   return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null
 }
 // Hub omits `loss` when it is 0; a failed probe counts as fully lost.
-const pointLoss = (p: PingPoint) => p.loss ?? (p.latency === null ? 100 : 0)
+export const pointLoss = (p: PingPoint) => p.loss ?? (p.latency === null ? 100 : 0)
 
 export function lineIds(history: HistoryResponse) {
   return [...new Set(history.ping.map((p) => p.task_id))].sort((a, b) => a - b)

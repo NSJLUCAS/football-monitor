@@ -10,6 +10,8 @@ export const router = createRouter({
       meta: { title: '节点详情' },
     },
     { path: '/network', component: () => import('./views/NetworkView.vue'), meta: { title: '网络质量' } },
+    // A wall screen: the page brings its own header, and the site's header and footer stay out of the way.
+    { path: '/ops', component: () => import('./views/OpsView.vue'), meta: { title: '运维模式', bare: true } },
     { path: '/settings', component: () => import('./views/SettingsView.vue'), meta: { title: '主题设置' } },
     { path: '/:pathMatch(.*)*', redirect: '/' },
   ],

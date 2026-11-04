@@ -20,7 +20,11 @@ try {
 const media = matchMedia('(prefers-color-scheme: dark)'),
   systemDark = ref(media.matches)
 const appearance = computed(() => visitor.value || store.config.appearance)
-const dark = computed(() => (appearance.value === 'system' ? systemDark.value : appearance.value !== 'light'))
+// The ops wall is always dark; leaving it brings back the visitor's appearance.
+const bare = computed(() => route.meta.bare === true)
+const dark = computed(
+  () => bare.value || (appearance.value === 'system' ? systemDark.value : appearance.value !== 'light'),
+)
 const systemChange = () => {
   systemDark.value = media.matches
 }
@@ -96,7 +100,7 @@ const connectionText = computed(
 </script>
 <template>
   <a href="#main" class="skip-link">跳到主要内容</a>
-  <header class="site-header">
+  <header v-if="!bare" class="site-header">
     <div class="header-inner">
       <RouterLink to="/" class="brand" aria-label="Football Monitor 首页"
         ><img src="/favicon.svg" alt="" /><span class="brand-word"
@@ -106,7 +110,8 @@ const connectionText = computed(
       <nav class="main-nav" aria-label="主导航">
         <RouterLink to="/" exact-active-class="active">首页</RouterLink
         ><RouterLink to="/#squad">服务器</RouterLink
-        ><RouterLink to="/network" active-class="active">网络质量</RouterLink>
+        ><RouterLink to="/network" active-class="active">网络质量</RouterLink
+        ><RouterLink to="/ops" class="ops-link" active-class="active">运维模式</RouterLink>
       </nav>
       <label class="header-search"
         ><Search :size="15" /><input
@@ -155,8 +160,8 @@ const connectionText = computed(
       </div>
     </div>
   </header>
-  <main id="main" class="page-container" tabindex="-1"><RouterView /></main>
-  <footer class="site-footer">
+  <main id="main" :class="{ 'page-container': !bare }" tabindex="-1"><RouterView /></main>
+  <footer v-if="!bare" class="site-footer">
     <div class="footer-brand">
       FOOTBALL<strong>MONITOR</strong> <span>V{{ manifest.version }}</span>
     </div>

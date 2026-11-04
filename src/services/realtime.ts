@@ -116,7 +116,8 @@ export class RealtimeController {
     this.options.onStatus?.('polling', message)
     void this.fetchOnce()
     this.poll ??= setInterval(() => void this.fetchOnce(), 5000)
-    if (!this.retry && this.attempts < 8) {
+    // Backs off to a minute, then keeps trying at that pace: a page left open for days gets its socket back.
+    if (!this.retry) {
       const delay = Math.min(60000, 5000 * 2 ** Math.min(this.attempts, 4))
       this.attempts++
       this.retry = setTimeout(() => {

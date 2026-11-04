@@ -83,6 +83,7 @@ function makeRouter(): Router {
       { path: '/', component: DashboardView },
       { path: '/node/:id', component: { template: '<div />' } },
       { path: '/network', component: { template: '<div />' } },
+      { path: '/ops', component: { template: '<div class="ops-stub" />' }, meta: { bare: true } },
       { path: '/settings', component: { template: '<div />' } },
     ],
   })
@@ -409,6 +410,26 @@ describe('top bar search', () => {
     expect(wrapper.find('header .network-link').exists()).toBe(false)
     expect(wrapper.find('.main-nav a[href="/network"]').classes()).toContain('active')
     wrapper.unmount()
+  })
+
+  it('opens the ops wall from the header, without the site header and footer, always dark', async () => {
+    localStorage.setItem('football-monitor:appearance', 'light')
+    const { wrapper, router } = await mountApp('/')
+    expect(wrapper.find('.main-nav a[href="/ops"]').text()).toBe('运维模式')
+    expect(document.documentElement.classList.contains('dark')).toBe(false)
+    await router.push('/ops')
+    await flushPromises()
+    expect(wrapper.find('.ops-stub').exists()).toBe(true)
+    expect(wrapper.find('header.site-header').exists()).toBe(false)
+    expect(wrapper.find('footer.site-footer').exists()).toBe(false)
+    expect(wrapper.find('main').classes()).not.toContain('page-container')
+    expect(document.documentElement.classList.contains('dark')).toBe(true)
+    await router.push('/')
+    await flushPromises()
+    expect(wrapper.find('header.site-header').exists()).toBe(true)
+    expect(document.documentElement.classList.contains('dark')).toBe(false)
+    wrapper.unmount()
+    localStorage.removeItem('football-monitor:appearance')
   })
 
   it('filters in place on the network page', async () => {

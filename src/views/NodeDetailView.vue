@@ -28,6 +28,7 @@ import CardLiveStrip from '../components/CardLiveStrip.vue'
 import CarrierRow from '../components/CarrierRow.vue'
 import HistoryChart from '../components/HistoryChart.vue'
 import ScoreBreakdown from '../components/ScoreBreakdown.vue'
+import ProjectTile from '../components/ProjectTile.vue'
 const store = useMonitorStore(),
   route = useRoute()
 const node = computed(() => store.nodes.find((n) => n.id === Number(route.params.id)))
@@ -146,8 +147,13 @@ const traffic = computed(() => {
   const used = trafficUsed(n)
   return { used, share: n.traffic_limit > 0 ? percent(used, n.traffic_limit) : null }
 })
+// What the owner listed on this node; the section and its tab stay away when there is nothing.
+const projects = computed(() =>
+  node.value ? (store.config.nodes[String(node.value.id)]?.projects ?? []) : [],
+)
 const tabs = computed(() =>
   [
+    { id: 'projects', label: '项目', show: projects.value.length > 0 },
     { id: 'billing', label: '费用与流量', show: showBilling.value },
     { id: 'carriers', label: '三网线路', show: config.value.show_carriers },
     { id: 'score', label: '评分明细', show: true },
@@ -258,6 +264,17 @@ const pct = (loss: number) => `${Number(loss.toFixed(1))}%`
         </section>
       </aside>
       <div class="detail-content">
+        <section
+          v-if="projects.length"
+          id="projects"
+          class="detail-section detail-projects panel"
+          aria-labelledby="projects-title"
+        >
+          <h2 id="projects-title" class="detail-section-title">部署的项目</h2>
+          <ul class="detail-project-list">
+            <li v-for="p in projects" :key="p.name"><ProjectTile :project="p" /></li>
+          </ul>
+        </section>
         <section v-if="showBilling" id="billing" class="detail-section" aria-labelledby="billing-title">
           <h2 id="billing-title" class="detail-section-title">费用与流量</h2>
           <div class="billing-blocks">

@@ -365,6 +365,22 @@ describe('dashboard', () => {
   })
 })
 
+describe('search by project', () => {
+  it('finds a node by the name or the link host of a project on it', async () => {
+    const { wrapper, router, store } = await mountDashboard('/?q=vaultw')
+    expect(cardNames(wrapper)).toEqual([])
+    store.config = {
+      ...store.config,
+      nodes: { 2: { projects: [{ name: 'Vaultwarden', url: 'https://vault.example.com' }] } },
+    }
+    await flushPromises()
+    expect(cardNames(wrapper)).toEqual(['东京 B'])
+    await router.replace('/?q=VAULT.example')
+    await flushPromises()
+    expect(cardNames(wrapper)).toEqual(['东京 B'])
+  })
+})
+
 describe('top bar search', () => {
   async function mountApp(path: string) {
     vi.stubGlobal('matchMedia', () => ({

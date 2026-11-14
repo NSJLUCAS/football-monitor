@@ -210,6 +210,25 @@ describe('node detail page', () => {
       expect(wrapper.find(`section#${id}`).exists()).toBe(true)
   })
 
+  it('lists what runs on the node, first in the section tabs, and nothing when there is none', async () => {
+    const bare = await mountDetail()
+    expect(bare.wrapper.find('section#projects').exists()).toBe(false)
+    expect(bare.wrapper.find('nav[aria-label="详情分区"] a[href="#projects"]').exists()).toBe(false)
+    bare.wrapper.unmount()
+    const { wrapper } = await mountDetail((store) => {
+      store.config = {
+        ...store.config,
+        nodes: {
+          '103': { projects: [{ name: '博客', url: 'https://blog.example.com' }, { name: '定时备份' }] },
+        },
+      }
+    })
+    const section = wrapper.find('section#projects')
+    expect(section.find('h2').text()).toBe('部署的项目')
+    expect(section.findAll('.pj-item').map((i) => i.find('b').text())).toEqual(['博客', '定时备份'])
+    expect(section.find('a.pj-item').attributes('href')).toBe('https://blog.example.com')
+    expect(wrapper.find('nav[aria-label="详情分区"]').find('a').attributes('href')).toBe('#projects')
+  })
   it("shows today's traffic split and total in the billing panel", async () => {
     const { wrapper } = await mountDetail()
     const today = wrapper.get('.billing-today')

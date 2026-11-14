@@ -2743,3 +2743,19 @@ a.pj-item:hover .pj-out,
 a.pj-item:focus-visible .pj-out {
   opacity: 1;
 }
+
+/* Node page: what runs on this node. */
+.detail-projects {
+  padding: 20px;
+}
+.detail-project-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(200px, 100%), 1fr));
+  gap: 4px;
+  margin: 0 -6px -6px;
+  padding: 0;
+  list-style: none;
+}
+.detail-project-list li {
+  min-width: 0;
+}

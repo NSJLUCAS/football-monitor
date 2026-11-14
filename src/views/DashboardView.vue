@@ -15,6 +15,7 @@ import {
   Wallet,
   WifiOff,
 } from '@lucide/vue'
+import { projectSearchText } from '../domain/projects'
 import { useMonitorStore } from '../stores/monitor'
 import { useCardView } from '../services/cardView'
 import { bytes, cycle, money, rate } from '../domain/format'
@@ -68,7 +69,9 @@ const filtered = computed(() => {
   const list = grouped.value.filter(
     (n) =>
       (status.value === 'all' || n.online === (status.value === 'online')) &&
-      `${n.name} ${n.group} ${n.public_remark}`.toLowerCase().includes(term),
+      `${n.name} ${n.group} ${n.public_remark} ${projectSearchText(store.config.nodes[String(n.id)]?.projects)}`
+        .toLowerCase()
+        .includes(term),
   )
   if (sort.value === 'name') return [...list].sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'))
   if (sort.value === 'score') return [...list].sort((a, b) => (overall(b) ?? -1) - (overall(a) ?? -1))

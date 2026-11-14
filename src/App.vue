@@ -1,7 +1,17 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch, watchEffect } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
-import { Activity, Sun, Moon, Settings2, ArrowUpRight, Search, LayoutGrid, LayoutList } from '@lucide/vue'
+import {
+  Activity,
+  Boxes,
+  Sun,
+  Moon,
+  Settings2,
+  ArrowUpRight,
+  Search,
+  LayoutGrid,
+  LayoutList,
+} from '@lucide/vue'
 import { useMonitorStore } from './stores/monitor'
 import { useCardView } from './services/cardView'
 import manifest from '../theme.json'
@@ -40,8 +50,12 @@ watchEffect(() => {
   document.documentElement.classList.toggle('dark', dark.value)
   document.documentElement.dataset.motion = String(store.config.motion)
 })
-// The header search mirrors `?q=`: it filters the home and network pages live and jumps home from the others.
-const filtersInPlace = () => route.path === '/' || route.path === '/network'
+// The projects page is offered once it has something to show; the owner always sees it, to get started.
+const showProjects = computed(
+  () => store.me?.authed === true || Object.values(store.config.nodes).some((n) => n.projects?.length),
+)
+// The header search mirrors `?q=`: it filters the home, network and projects pages live and jumps home from the others.
+const filtersInPlace = () => ['/', '/network', '/projects'].includes(route.path)
 const search = ref('')
 watch(
   () => route.query.q,
@@ -111,6 +125,7 @@ const connectionText = computed(
         <RouterLink to="/" exact-active-class="active">首页</RouterLink
         ><RouterLink to="/#squad">服务器</RouterLink
         ><RouterLink to="/network" active-class="active">网络质量</RouterLink
+        ><RouterLink v-if="showProjects" to="/projects" active-class="active">项目</RouterLink
         ><RouterLink to="/ops" class="ops-link" active-class="active">运维模式</RouterLink>
       </nav>
       <label class="header-search"
@@ -139,6 +154,15 @@ const connectionText = computed(
           aria-label="网络质量"
           title="网络质量"
           ><RouterLink to="/network"><Activity :size="18" /></RouterLink></Button
+        ><Button
+          v-if="showProjects && route.path !== '/projects'"
+          variant="ghost"
+          size="icon"
+          class="projects-link"
+          as-child
+          aria-label="项目"
+          title="项目"
+          ><RouterLink to="/projects"><Boxes :size="18" /></RouterLink></Button
         ><Button
           v-if="route.path === '/' && !store.closed"
           variant="ghost"

@@ -1,0 +1,296 @@
+/* Projects page (/projects); loaded with its view. The tile itself (.pj-item) is shared and lives in style.css. */
+.pj-stats {
+  display: inline-flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.pj-stats b {
+  color: var(--foreground);
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+}
+.pj-down[data-on='true'],
+.pj-down[data-on='true'] b {
+  color: var(--danger);
+}
+.pj-search {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--subtle);
+  color: var(--muted);
+}
+.pj-search:focus-within {
+  border-color: var(--primary);
+}
+.pj-search input {
+  width: 190px;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: none;
+  color: var(--foreground);
+  font-size: 13px;
+}
+
+/* By machine: one panel each, as many columns as fit. */
+.pj-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(340px, 100%), 1fr));
+  gap: 12px;
+  align-items: start;
+}
+.pj-machine {
+  overflow: hidden;
+}
+.pj-machine[data-online='false'] {
+  border-color: color-mix(in srgb, var(--danger) 55%, var(--border));
+}
+.pj-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--border);
+  color: inherit;
+  text-decoration: none;
+}
+.pj-head:hover {
+  background: var(--surface-raised);
+}
+.pj-head:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+.pj-head b {
+  overflow: hidden;
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pj-head small {
+  flex-shrink: 0;
+  color: var(--muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+.pj-provider {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+.pj-provider img,
+.pj-provider svg {
+  width: 15px;
+  height: 15px;
+  object-fit: contain;
+  fill: currentColor;
+}
+.pj-head em {
+  flex-shrink: 0;
+  padding: 1px 7px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--success) 14%, transparent);
+  color: var(--success);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 700;
+}
+.pj-head em[data-online='false'] {
+  background: color-mix(in srgb, var(--danger) 16%, transparent);
+  color: var(--danger);
+}
+.pj-score {
+  flex-shrink: 0;
+  margin-left: auto;
+  color: var(--primary-text);
+  font-size: 14px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.pj-machine[data-online='false'] .pj-score {
+  color: var(--muted);
+}
+.pj-count {
+  flex-shrink: 0;
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.pj-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  margin: 0;
+  padding: 8px;
+  list-style: none;
+}
+.pj-list li {
+  min-width: 0;
+}
+/* What runs on a machine that is away is not reachable either. */
+.pj-machine[data-online='false'] .pj-list {
+  opacity: 0.55;
+}
+.pj-idle {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin: 12px 0 0;
+  padding: 11px 14px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.pj-idle b {
+  color: var(--foreground);
+}
+.pj-idle a,
+.pj-host {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+}
+.pj-idle a:hover,
+.pj-host:hover {
+  color: var(--primary-text);
+}
+
+/* By project: one row each, one grid shared with the head. */
+.pj-table {
+  overflow: hidden;
+}
+.pj-thead,
+.pj-row {
+  display: grid;
+  grid-template-columns: minmax(150px, 220px) minmax(150px, 240px) minmax(200px, 1.2fr) minmax(120px, 1fr);
+  align-items: center;
+  gap: 12px;
+  padding: 9px 16px;
+}
+.pj-thead {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+.pj-thead small {
+  margin-left: 4px;
+  font-weight: 400;
+}
+.pj-row {
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+}
+.pj-row .pj-item {
+  padding: 0;
+}
+.pj-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pj-urls {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.pj-url {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  color: var(--primary-text);
+  text-decoration: none;
+}
+.pj-url span,
+.pj-host span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pj-url svg {
+  flex-shrink: 0;
+}
+.pj-url:hover {
+  text-decoration: underline;
+}
+.pj-hosts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+.pj-host {
+  max-width: 100%;
+  padding: 3px 9px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--subtle);
+  font-size: 12px;
+  font-weight: 600;
+}
+.pj-host[data-online='false'] {
+  border-color: color-mix(in srgb, var(--danger) 55%, var(--border));
+  color: var(--danger);
+}
+.pj-host em {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-style: normal;
+}
+.pj-muted {
+  overflow: hidden;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Narrow: no head; the name and link on top, the machines and the note below. */
+@media (max-width: 899px) {
+  .pj-thead {
+    display: none;
+  }
+  .pj-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    padding: 12px 14px;
+  }
+  .pj-hosts,
+  .pj-note {
+    grid-column: 1 / -1;
+  }
+  .pj-note:not([title]),
+  .pj-note[title=''] {
+    display: none;
+  }
+}
+@media (max-width: 639px) {
+  .pj-search {
+    flex: 1 1 100%;
+  }
+  .pj-search input {
+    width: 100%;
+  }
+  .pj-head small {
+    display: none;
+  }
+}
+@media (max-width: 359px) {
+  .pj-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

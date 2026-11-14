@@ -5,7 +5,7 @@ import { nodeTemplate, resolveSkin } from '../domain/skins'
 import { lineSkills } from '../domain/carriers'
 import { flagUrl } from '../domain/flags'
 import { countryName } from '../domain/format'
-import { osBadge, providerOf, type BrandIcon } from '../domain/providers'
+import { osBadge, providerBadge, type BrandIcon } from '../domain/providers'
 import type { MonitorNode, TemplateId, ThemeConfig } from '../domain/types'
 import PlayerPortrait from './PlayerPortrait.vue'
 import { cardPortraitBox } from '../domain/portrait'
@@ -55,28 +55,18 @@ interface Crest {
 const crests = computed(() => {
   const list: Crest[] = [],
     code = props.node.country,
-    provider = settings.value?.provider,
+    provider = providerBadge(settings.value?.provider),
     os = osBadge(props.node.os)
   if (code)
     list.push({ kind: 'flag', title: countryName(code), image: flagUrl(code), text: code.toUpperCase() })
-  if (provider?.id === 'custom')
+  if (provider)
     list.push({
       kind: 'provider',
-      title: provider.name || '自定义服务商',
-      image: provider.logo,
-      text: provider.name,
+      title: provider.name,
+      image: provider.image,
+      icon: provider.icon,
+      text: provider.short,
     })
-  else {
-    const known = providerOf(provider?.id)
-    if (known)
-      list.push({
-        kind: 'provider',
-        title: known.name,
-        image: known.image,
-        icon: known.icon,
-        text: known.short,
-      })
-  }
   if (os) list.push({ kind: 'os', title: os.name, icon: os.icon, text: os.short })
   return list
 })

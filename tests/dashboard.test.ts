@@ -83,6 +83,7 @@ function makeRouter(): Router {
       { path: '/', component: DashboardView },
       { path: '/node/:id', component: { template: '<div />' } },
       { path: '/network', component: { template: '<div />' } },
+      { path: '/projects', component: { template: '<div />' } },
       { path: '/ops', component: { template: '<div class="ops-stub" />' }, meta: { bare: true } },
       { path: '/settings', component: { template: '<div />' } },
     ],
@@ -442,6 +443,39 @@ describe('top bar search', () => {
     await input.trigger('keydown', { key: 'Enter' })
     await flushPromises()
     expect(router.currentRoute.value.path).toBe('/network')
+    wrapper.unmount()
+  })
+
+  it('links the projects page once a project exists or the owner is signed in', async () => {
+    const { wrapper, router } = await mountApp('/')
+    const store = useMonitorStore()
+    expect(wrapper.find('.main-nav a[href="/projects"]').exists()).toBe(false)
+    expect(wrapper.find('header .projects-link').exists()).toBe(false)
+    store.me = { authed: true, site_name: 'Monitor', public_page: true, github: false, history_days: 7 }
+    await flushPromises()
+    expect(wrapper.find('.main-nav a[href="/projects"]').text()).toBe('项目')
+    store.me = { ...store.me, authed: false }
+    store.config = { ...store.config, nodes: { 1: { projects: [{ name: '博客' }] } } }
+    await flushPromises()
+    expect(wrapper.find('.main-nav a[href="/projects"]').text()).toBe('项目')
+    expect(wrapper.find('header .projects-link').attributes('aria-label')).toBe('项目')
+    await router.push('/projects')
+    await flushPromises()
+    expect(wrapper.find('header .projects-link').exists()).toBe(false)
+    expect(wrapper.find('.main-nav a[href="/projects"]').classes()).toContain('active')
+    wrapper.unmount()
+  })
+
+  it('filters in place on the projects page', async () => {
+    const { wrapper, router } = await mountApp('/projects')
+    const input = wrapper.find<HTMLInputElement>('header input#node-search')
+    await input.setValue('博客')
+    await flushPromises()
+    expect(router.currentRoute.value.path).toBe('/projects')
+    expect(router.currentRoute.value.query.q).toBe('博客')
+    await input.trigger('keydown', { key: 'Enter' })
+    await flushPromises()
+    expect(router.currentRoute.value.path).toBe('/projects')
     wrapper.unmount()
   })
 

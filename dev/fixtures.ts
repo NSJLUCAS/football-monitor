@@ -148,6 +148,27 @@ export function nodes() {
     day_tx: 2 * GiB,
   }))
 }
+// Sample projects for the isolated mock only: one machine left idle, one project on two machines.
+const demoProjects = [
+  [
+    { name: '博客', url: 'https://blog.example.com', note: '个人博客' },
+    { name: '图床', url: 'https://img.example.com' },
+    { name: 'Uptime Kuma', url: 'https://status.example.com', note: '监控面板' },
+  ],
+  [
+    { name: 'API 网关', url: 'https://api.example.com', note: '给小程序用' },
+    { name: 'Vaultwarden', url: 'https://vault.example.com' },
+  ],
+  undefined,
+  [
+    { name: 'Alist', url: 'https://pan.example.com', note: '网盘挂载' },
+    { name: 'RSSHub', url: 'https://rss.example.com' },
+    { name: 'Memos', url: 'https://memo.example.com' },
+    { name: '定时备份', note: '每天 04:00 打包到对象存储' },
+    { name: '博客', url: 'https://blog.example.com', note: '备用节点' },
+  ],
+  [{ name: 'Gitea', url: 'https://git.example.com', note: '私有仓库' }],
+]
 export const initialConfig = {
   preserved_external_setting: 'must survive saves',
   node_config: JSON.stringify({
@@ -164,6 +185,7 @@ export const initialConfig = {
             { id: 'hetzner' },
             { id: 'digitalocean' },
           ][i],
+          projects: demoProjects[i],
           carriers: {
             telecom: { taskId: 201, line: ['CN2 GIA', '163', '163', '163', '普通线路'][i] },
             unicom: { taskId: 202, line: i % 2 ? '9929' : '4837' },

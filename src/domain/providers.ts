@@ -34,6 +34,7 @@ import {
   siUpcloud,
   siVultr,
 } from 'simple-icons'
+import type { ProviderConfig } from './types'
 
 /** Brand mark from Simple Icons (CC0): a 24x24 path drawn in the brand colour. */
 export interface BrandIcon {
@@ -91,6 +92,16 @@ export const providers: Provider[] = [
   { id: 'akile', name: 'Akile', image: logo('akile.webp') },
 ]
 export const providerOf = (id: unknown) => providers.find((p) => p.id === id)
+
+/** The mark shown for a node's provider setting: a known brand, or the owner's own name and logo. */
+export function providerBadge(
+  provider?: ProviderConfig,
+): { name: string; icon?: BrandIcon; image?: string; short?: string } | null {
+  if (provider?.id === 'custom')
+    return { name: provider.name || '自定义服务商', image: provider.logo, short: provider.name }
+  const known = providerOf(provider?.id)
+  return known ? { name: known.name, image: known.image, icon: known.icon, short: known.short } : null
+}
 
 const systems: [RegExp, Badge][] = [
   [/debian/i, { name: 'Debian', icon: mark(siDebian) }],

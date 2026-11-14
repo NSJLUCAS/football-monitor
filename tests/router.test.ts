@@ -21,6 +21,11 @@ describe('router scroll behaviour', () => {
     const ops = router.getRoutes().find((r) => r.path === '/ops')
     expect(ops?.meta).toMatchObject({ title: '运维模式', bare: true })
   })
+  it('registers the projects page as its own chunk', () => {
+    const projects = router.getRoutes().find((r) => r.path === '/projects')
+    expect(projects?.meta).toMatchObject({ title: '项目' })
+    expect(typeof projects?.components?.default).toBe('function')
+  })
   it('has no About page route', () => {
     expect(router.getRoutes().some((r) => r.path === '/about')).toBe(false)
   })

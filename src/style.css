@@ -218,7 +218,8 @@ svg {
   color: var(--foreground);
 }
 /* The network page's own header icon stands in for the main navigation on phones only. */
-.header-actions .network-link {
+.header-actions .network-link,
+.header-actions .projects-link {
   display: none;
 }
 /* The ops wall is for large screens; below desktop width its entry would push the header sideways. */
@@ -1796,7 +1797,8 @@ svg {
   .main-nav {
     display: none;
   }
-  .header-actions .network-link {
+  .header-actions .network-link,
+  .header-actions .projects-link {
     display: inline-flex;
   }
   .header-search {
@@ -2677,4 +2679,67 @@ svg {
 .provider-upload[aria-busy='true'] {
   cursor: progress;
   opacity: 0.7;
+}
+
+/* A project tile: shared by the projects page and the node page. */
+.pj-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  padding: 6px;
+  border-radius: 8px;
+  color: inherit;
+  text-decoration: none;
+}
+a.pj-item:hover {
+  background: var(--surface-raised);
+}
+a.pj-item:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+.pj-tile {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: hsl(var(--h) 55% 46% / 0.2);
+  color: hsl(var(--h) 75% 28%);
+  font-size: 14px;
+  font-style: normal;
+  font-weight: 800;
+}
+.dark .pj-tile {
+  color: hsl(var(--h) 80% 74%);
+}
+.pj-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.pj-text b,
+.pj-text small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pj-text b {
+  font-size: 13px;
+}
+.pj-text small {
+  color: var(--muted);
+  font-size: 11px;
+}
+.pj-out {
+  flex-shrink: 0;
+  margin-left: auto;
+  color: var(--muted);
+  opacity: 0;
+}
+a.pj-item:hover .pj-out,
+a.pj-item:focus-visible .pj-out {
+  opacity: 1;
 }

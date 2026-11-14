@@ -25,9 +25,10 @@ import type {
   GlobalConfig,
   NodeConfig,
   PortraitConfig,
+  ProjectConfig,
+  ProviderConfig,
   TemplateId,
   ThemeConfig,
-  ProviderConfig,
 } from '../domain/types'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
@@ -39,6 +40,7 @@ import PortraitEditor from '../components/PortraitEditor.vue'
 import NodeSettings from '../components/NodeSettings.vue'
 import ExchangeRatesField from '../components/ExchangeRatesField.vue'
 import ProviderPicker from '../components/ProviderPicker.vue'
+import ProjectsEditor from '../components/ProjectsEditor.vue'
 const store = useMonitorStore(),
   route = useRoute()
 const crumbs = [{ label: 'Football Monitor', to: '/' }, { label: '主题设置' }]
@@ -171,6 +173,9 @@ function templateChange(value: TemplateId | undefined) {
 }
 function providerChange(value: ProviderConfig | undefined) {
   updateNode({ ...current.value, provider: value })
+}
+function projectsChange(value: ProjectConfig[]) {
+  updateNode({ ...current.value, projects: value })
 }
 function defaultTemplateChange(value: TemplateId | undefined) {
   if (value) updateGlobal('default_template', value)
@@ -412,6 +417,12 @@ async function save() {
                   :node-id="selected"
                   :endpoint="previewConfig.upload_endpoint"
                   @update:model-value="providerChange"
+                />
+                <h3 class="field-section-title">部署的项目</h3>
+                <ProjectsEditor
+                  :model-value="current.projects"
+                  :node-id="selected"
+                  @update:model-value="projectsChange"
                 />
                 <Button variant="outline" size="sm" @click="resetNode"
                   ><RotateCcw :size="13" />恢复此节点的全部默认设置</Button

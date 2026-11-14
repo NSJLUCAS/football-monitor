@@ -2305,7 +2305,8 @@ svg {
   font-weight: 600;
 }
 .form-field input,
-.form-field select {
+.form-field select,
+.project-row input {
   width: 100%;
   border: 1px solid var(--border);
   border-radius: 6px;
@@ -2315,7 +2316,8 @@ svg {
   font-size: 13px;
   color: var(--foreground);
 }
-.form-field input::placeholder {
+.form-field input::placeholder,
+.project-row input::placeholder {
   color: var(--muted);
   opacity: 0.6;
 }
@@ -2758,4 +2760,46 @@ a.pj-item:focus-visible .pj-out {
 }
 .detail-project-list li {
   min-width: 0;
+}
+
+/* Settings: one line per project on a node. */
+.projects-editor {
+  margin-bottom: 20px;
+}
+.projects-editor .settings-callout {
+  margin-top: 0;
+}
+.project-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) minmax(0, 1.2fr) auto;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.project-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin-top: 12px;
+}
+.projects-editor .form-error {
+  margin-top: 4px;
+}
+.project-actions .form-help {
+  margin: 0;
+}
+@media (max-width: 639px) {
+  .project-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .project-row > :nth-child(2),
+  .project-row > :nth-child(3) {
+    grid-column: 1;
+  }
+  .project-row > button {
+    grid-area: 1 / 2;
+  }
 }

@@ -131,11 +131,18 @@ export interface ProviderConfig {
   name?: string
   logo?: string
 }
+/** Something the owner runs on a node. Public like the rest of the config: a name, a public link, a note. */
+export interface ProjectConfig {
+  name: string
+  url?: string
+  note?: string
+}
 export interface NodeConfig {
   template?: TemplateId
   provider?: ProviderConfig
   portrait?: PortraitConfig
   carriers?: Partial<Record<CarrierId, CarrierConfig>>
+  projects?: ProjectConfig[]
 }
 /** Home page node presentation: the card over its live strip, or the card beside a data panel. */
 export type CardView = 'stacked' | 'split'

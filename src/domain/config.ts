@@ -9,6 +9,7 @@ import type {
   GlobalConfig,
   NodeConfig,
   PortraitConfig,
+  ProjectConfig,
   ProviderConfig,
   RawConfig,
   ThemeConfig,
@@ -104,6 +105,49 @@ function providerValue(value: unknown, strict: boolean): ProviderConfig | undefi
   if (!name && !p.logo) return invalid('自定义服务商需要名称或 LOGO')
   return { id: 'custom', ...(name ? { name } : {}), ...(p.logo ? { logo: String(p.logo) } : {}) }
 }
+export const PROJECT_LIMITS = { name: 40, url: 200, note: 80, perNode: 20 } as const
+/** A node's projects. Reading drops what does not fit; saving (`strict`) names the first thing that is wrong. */
+export function validProjects(value: unknown, strict = false): ProjectConfig[] {
+  const fail = (message: string) => {
+    if (strict) throw new ConfigError(message)
+  }
+  if (!Array.isArray(value)) {
+    fail('项目列表格式错误')
+    return []
+  }
+  if (value.length > PROJECT_LIMITS.perNode) fail(`每台机器最多 ${PROJECT_LIMITS.perNode} 个项目`)
+  const result: ProjectConfig[] = [],
+    seen = new Set<string>()
+  for (const item of value) {
+    if (result.length === PROJECT_LIMITS.perNode) break
+    const p = record(item),
+      name = typeof p.name === 'string' ? p.name.trim() : ''
+    if (!name || [...name].length > PROJECT_LIMITS.name) {
+      fail(`项目名称需为 1–${PROJECT_LIMITS.name} 字`)
+      continue
+    }
+    const key = name.toLowerCase()
+    if (seen.has(key)) {
+      fail(`项目“${name}”重复`)
+      continue
+    }
+    seen.add(key)
+    const project: ProjectConfig = { name }
+    if (p.url !== undefined && p.url !== '') {
+      if (typeof p.url === 'string' && p.url.length <= PROJECT_LIMITS.url && safeImageUrl(p.url))
+        project.url = p.url
+      else fail(`项目网址必须是公开 HTTPS 地址，最长 ${PROJECT_LIMITS.url} 字符`)
+    }
+    if (p.note !== undefined && p.note !== '') {
+      if (typeof p.note !== 'string' || [...p.note].length > PROJECT_LIMITS.note)
+        fail(`项目备注最多 ${PROJECT_LIMITS.note} 字`)
+      const note = typeof p.note === 'string' ? [...p.note].slice(0, PROJECT_LIMITS.note).join('').trim() : ''
+      if (note) project.note = note
+    }
+    result.push(project)
+  }
+  return result
+}
 function nodeValue(value: unknown, strict = false): NodeConfig {
   const n = record(value)
   const result: NodeConfig = {}
@@ -128,6 +172,10 @@ function nodeValue(value: unknown, strict = false): NodeConfig {
         ...(typeof c.line === 'string' ? { line: c.line.slice(0, 64) } : {}),
       }
     }
+  }
+  if (n.projects !== undefined) {
+    const projects = validProjects(n.projects, strict)
+    if (projects.length) result.projects = projects
   }
   return result
 }
@@ -196,6 +244,7 @@ export function mergeConfig(raw: RawConfig, patch: ConfigPatch): RawConfig {
         delete old.portrait
         delete old.carriers
         delete old.provider
+        delete old.projects
         doc.nodes[id] = { ...old, ...validated }
       }
     }

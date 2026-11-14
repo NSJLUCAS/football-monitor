@@ -175,3 +175,51 @@ describe('site config contract', () => {
     expect(JSON.parse(String(raw.node_config)).nodes['1']).toEqual({ provider: { id: 'hetzner' }, extra: 1 })
   })
 })
+
+describe('node projects', () => {
+  const doc = (nodes: unknown) => ({ node_config: JSON.stringify({ version: 1, nodes }) })
+  it('reads projects leniently', () => {
+    const { nodes } = parseConfig(
+      doc({
+        1: {
+          projects: [
+            { name: '  博客 ', url: 'https://blog.example.com', note: 'Halo' },
+            { name: '' },
+            { name: '内网', url: 'http://10.0.0.1:8080' },
+            { name: '博客' },
+            'junk',
+          ],
+        },
+      }),
+    )
+    expect(nodes['1']!.projects).toEqual([
+      { name: '博客', url: 'https://blog.example.com', note: 'Halo' },
+      { name: '内网' },
+    ])
+  })
+  it('rejects bad projects on save', () => {
+    const save = (projects: unknown) => () => mergeConfig({}, { nodes: { 1: { projects } as never } })
+    expect(save([{ name: ' ' }])).toThrow('项目名称需为 1–40 字')
+    expect(save([{ name: 'x'.repeat(41) }])).toThrow('项目名称需为 1–40 字')
+    expect(save([{ name: 'a', url: 'http://a.example.com' }])).toThrow('项目网址必须是公开 HTTPS 地址')
+    expect(save([{ name: 'a', url: `https://a.example.com/${'p'.repeat(200)}` }])).toThrow('最长 200 字符')
+    expect(save([{ name: 'a', note: 'n'.repeat(81) }])).toThrow('项目备注最多 80 字')
+    expect(save([{ name: 'Blog' }, { name: 'blog ' }])).toThrow('项目“blog”重复')
+    expect(save(Array.from({ length: 21 }, (_, i) => ({ name: `p${i}` })))).toThrow('每台机器最多 20 个项目')
+    expect(save('nope')).toThrow(ConfigError)
+  })
+  it('stores projects, keeps unknown keys and drops the key when the list is emptied', () => {
+    const raw = doc({ 1: { future_key: 'keep' }, 999: { projects: [{ name: 'ghost' }] } })
+    const saved = mergeConfig(raw, {
+      nodes: { 1: { projects: [{ name: ' 博客 ', url: 'https://b.example.com', note: '' }] } },
+    })
+    const nodes = JSON.parse(saved.node_config as string).nodes
+    expect(nodes['1']).toEqual({
+      future_key: 'keep',
+      projects: [{ name: '博客', url: 'https://b.example.com' }],
+    })
+    expect(nodes['999']).toEqual({ projects: [{ name: 'ghost' }] })
+    const cleared = mergeConfig(saved, { nodes: { 1: { projects: [] } } })
+    expect(JSON.parse(cleared.node_config as string).nodes['1']).toEqual({ future_key: 'keep' })
+  })
+})

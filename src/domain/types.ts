@@ -131,10 +131,12 @@ export interface ProviderConfig {
   name?: string
   logo?: string
 }
-/** Something the owner runs on a node. Public like the rest of the config: a name, a public link, a note. */
+/** What kind of thing runs on a node. */
+export type ProjectKind = 'docker' | 'site' | 'cron'
+/** Something the owner runs on a node. Public like the rest of the config, so it carries no link: a kind, a name, a note. */
 export interface ProjectConfig {
   name: string
-  url?: string
+  kind: ProjectKind
   note?: string
 }
 export interface NodeConfig {
@@ -164,6 +166,8 @@ export interface GlobalConfig {
 export interface ThemeConfig extends GlobalConfig {
   nodes: Record<string, NodeConfig>
   configWarning: string
+  /** Project links saved before links were dropped are still in the public config; the next save wipes them. */
+  projectUrlsLeft?: boolean
 }
 export interface ConfigPatch {
   values?: Partial<GlobalConfig>

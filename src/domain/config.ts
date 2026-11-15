@@ -10,6 +10,7 @@ import type {
   NodeConfig,
   PortraitConfig,
   ProjectConfig,
+  ProjectKind,
   ProviderConfig,
   RawConfig,
   ThemeConfig,
@@ -105,7 +106,9 @@ function providerValue(value: unknown, strict: boolean): ProviderConfig | undefi
   if (!name && !p.logo) return invalid('自定义服务商需要名称或 LOGO')
   return { id: 'custom', ...(name ? { name } : {}), ...(p.logo ? { logo: String(p.logo) } : {}) }
 }
-export const PROJECT_LIMITS = { name: 40, url: 200, note: 80, perNode: 20 } as const
+export const PROJECT_LIMITS = { name: 40, note: 80, perNode: 20 } as const
+export const PROJECT_KINDS: readonly ProjectKind[] = ['docker', 'site', 'cron']
+const isProjectKind = (value: unknown): value is ProjectKind => PROJECT_KINDS.includes(value as ProjectKind)
 /** A node's projects. Reading drops what does not fit; saving (`strict`) names the first thing that is wrong. */
 export function validProjects(value: unknown, strict = false): ProjectConfig[] {
   const fail = (message: string) => {
@@ -132,12 +135,9 @@ export function validProjects(value: unknown, strict = false): ProjectConfig[] {
       continue
     }
     seen.add(key)
-    const project: ProjectConfig = { name }
-    if (p.url !== undefined && p.url !== '') {
-      if (typeof p.url === 'string' && p.url.length <= PROJECT_LIMITS.url && safeImageUrl(p.url))
-        project.url = p.url
-      else fail(`项目网址必须是公开 HTTPS 地址，最长 ${PROJECT_LIMITS.url} 字符`)
-    }
+    // An entry saved before kinds existed is a site; a link it may carry is never read.
+    if (p.kind !== undefined && !isProjectKind(p.kind)) fail('项目类型无效')
+    const project: ProjectConfig = { name, kind: isProjectKind(p.kind) ? p.kind : 'site' }
     if (p.note !== undefined && p.note !== '') {
       if (typeof p.note !== 'string' || [...p.note].length > PROJECT_LIMITS.note)
         fail(`项目备注最多 ${PROJECT_LIMITS.note} 字`)
@@ -215,18 +215,42 @@ export function parseConfig(raw: RawConfig): ThemeConfig {
       }),
   ) as unknown as GlobalConfig
   let nodes: Record<string, NodeConfig> = {},
-    configWarning = ''
+    configWarning = '',
+    projectUrlsLeft = false
   try {
-    nodes = Object.fromEntries(
-      Object.entries(nodeDocument(raw.node_config).nodes).map(([id, n]) => [id, nodeValue(n)]),
-    )
+    const doc = nodeDocument(raw.node_config)
+    nodes = Object.fromEntries(Object.entries(doc.nodes).map(([id, n]) => [id, nodeValue(n)]))
+    projectUrlsLeft = wipeProjectUrls(doc)
   } catch (e) {
     configWarning = e instanceof Error ? e.message : '节点配置不可读取'
   }
-  return { ...config, nodes, configWarning }
+  return { ...config, nodes, configWarning, projectUrlsLeft }
+}
+/** Removes the links projects carried before they were dropped, in place; anything else in an entry stays. */
+function wipeProjectUrls(doc: { nodes: RawConfig }): boolean {
+  let wiped = false
+  for (const node of Object.values(doc.nodes)) {
+    const projects = record(node).projects
+    if (!Array.isArray(projects)) continue
+    for (const item of projects)
+      if (item && typeof item === 'object' && 'url' in item) {
+        delete (item as RawConfig).url
+        wiped = true
+      }
+  }
+  return wiped
 }
 export function mergeConfig(raw: RawConfig, patch: ConfigPatch): RawConfig {
   const next = { ...raw }
+  // Every save takes old project links out of the public config, whatever else it changes.
+  if (!patch.nodes || !Object.keys(patch.nodes).length) {
+    try {
+      const doc = nodeDocument(raw.node_config)
+      if (wipeProjectUrls(doc)) next.node_config = JSON.stringify(doc)
+    } catch {
+      // An unreadable node document is left as it is; global settings still save.
+    }
+  }
   for (const [key, value] of Object.entries(patch.values || {})) {
     if (!fits(key, value) || key === 'node_config') throw new ConfigError(`配置 ${key} 不合法`)
     if (value === defaults[key]) delete next[key]
@@ -234,6 +258,7 @@ export function mergeConfig(raw: RawConfig, patch: ConfigPatch): RawConfig {
   }
   if (patch.nodes && Object.keys(patch.nodes).length) {
     const doc = nodeDocument(raw.node_config)
+    wipeProjectUrls(doc)
     for (const [id, change] of Object.entries(patch.nodes)) {
       if (!/^[1-9]\d*$/.test(id) || !Number.isSafeInteger(Number(id))) throw new ConfigError('节点 ID 不合法')
       if (change === null) delete doc.nodes[id]

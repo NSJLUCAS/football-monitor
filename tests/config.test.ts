@@ -178,48 +178,88 @@ describe('site config contract', () => {
 
 describe('node projects', () => {
   const doc = (nodes: unknown) => ({ node_config: JSON.stringify({ version: 1, nodes }) })
-  it('reads projects leniently', () => {
+  const nodesOf = (raw: Record<string, unknown>) => JSON.parse(raw.node_config as string).nodes
+  it('reads projects leniently: an old entry without a kind is a site and its link is dropped', () => {
     const { nodes } = parseConfig(
       doc({
         1: {
           projects: [
             { name: '  博客 ', url: 'https://blog.example.com', note: 'Halo' },
             { name: '' },
-            { name: '内网', url: 'http://10.0.0.1:8080' },
-            { name: '博客' },
+            { name: 'Alist', kind: 'docker' },
+            { name: '备份', kind: 'cron', note: '每天 04:00' },
+            { name: '怪', kind: 'nope' },
+            { name: '博客', kind: 'docker' },
             'junk',
           ],
         },
       }),
     )
     expect(nodes['1']!.projects).toEqual([
-      { name: '博客', url: 'https://blog.example.com', note: 'Halo' },
-      { name: '内网' },
+      { name: '博客', kind: 'site', note: 'Halo' },
+      { name: 'Alist', kind: 'docker' },
+      { name: '备份', kind: 'cron', note: '每天 04:00' },
+      { name: '怪', kind: 'site' },
     ])
   })
   it('rejects bad projects on save', () => {
     const save = (projects: unknown) => () => mergeConfig({}, { nodes: { 1: { projects } as never } })
-    expect(save([{ name: ' ' }])).toThrow('项目名称需为 1–40 字')
-    expect(save([{ name: 'x'.repeat(41) }])).toThrow('项目名称需为 1–40 字')
-    expect(save([{ name: 'a', url: 'http://a.example.com' }])).toThrow('项目网址必须是公开 HTTPS 地址')
-    expect(save([{ name: 'a', url: `https://a.example.com/${'p'.repeat(200)}` }])).toThrow('最长 200 字符')
-    expect(save([{ name: 'a', note: 'n'.repeat(81) }])).toThrow('项目备注最多 80 字')
-    expect(save([{ name: 'Blog' }, { name: 'blog ' }])).toThrow('项目“blog”重复')
-    expect(save(Array.from({ length: 21 }, (_, i) => ({ name: `p${i}` })))).toThrow('每台机器最多 20 个项目')
+    expect(save([{ name: ' ', kind: 'site' }])).toThrow('项目名称需为 1–40 字')
+    expect(save([{ name: 'x'.repeat(41), kind: 'site' }])).toThrow('项目名称需为 1–40 字')
+    expect(save([{ name: 'a', kind: 'nope' }])).toThrow('项目类型无效')
+    expect(save([{ name: 'a', kind: 'site', note: 'n'.repeat(81) }])).toThrow('项目备注最多 80 字')
+    expect(save([{ name: 'Blog', kind: 'site' }, { name: 'blog ', kind: 'docker' }])).toThrow('项目“blog”重复')
+    expect(save(Array.from({ length: 21 }, (_, i) => ({ name: `p${i}`, kind: 'site' })))).toThrow(
+      '每台机器最多 20 个项目',
+    )
     expect(save('nope')).toThrow(ConfigError)
   })
-  it('stores projects, keeps unknown keys and drops the key when the list is emptied', () => {
+  it('stores projects with their kind and never a link, keeps unknown keys and drops an emptied list', () => {
     const raw = doc({ 1: { future_key: 'keep' }, 999: { projects: [{ name: 'ghost' }] } })
     const saved = mergeConfig(raw, {
-      nodes: { 1: { projects: [{ name: ' 博客 ', url: 'https://b.example.com', note: '' }] } },
+      nodes: {
+        1: {
+          projects: [
+            { name: ' 博客 ', url: 'https://b.example.com', note: '' } as never,
+            { name: 'Gitea', kind: 'docker' },
+          ],
+        },
+      },
     })
-    const nodes = JSON.parse(saved.node_config as string).nodes
-    expect(nodes['1']).toEqual({
+    expect(nodesOf(saved)['1']).toEqual({
       future_key: 'keep',
-      projects: [{ name: '博客', url: 'https://b.example.com' }],
+      projects: [
+        { name: '博客', kind: 'site' },
+        { name: 'Gitea', kind: 'docker' },
+      ],
     })
-    expect(nodes['999']).toEqual({ projects: [{ name: 'ghost' }] })
+    expect(nodesOf(saved)['999']).toEqual({ projects: [{ name: 'ghost' }] })
     const cleared = mergeConfig(saved, { nodes: { 1: { projects: [] } } })
-    expect(JSON.parse(cleared.node_config as string).nodes['1']).toEqual({ future_key: 'keep' })
+    expect(nodesOf(cleared)['1']).toEqual({ future_key: 'keep' })
+  })
+  it('wipes links left from before on any save, even of global settings only', () => {
+    const raw = {
+      motion: false,
+      ...doc({
+        1: { template: 'gold', future_key: 'keep', projects: [{ name: '博客', url: 'https://b.example.com', x: 1 }] },
+        2: { projects: [{ name: 'Gitea', kind: 'docker', url: 'https://g.example.com' }] },
+        3: { template: 'gold' },
+      }),
+    }
+    expect(parseConfig(raw).projectUrlsLeft).toBe(true)
+    const next = mergeConfig(raw, { values: { motion: true } })
+    expect(String(next.node_config)).not.toContain('url')
+    expect(nodesOf(next)).toEqual({
+      1: { template: 'gold', future_key: 'keep', projects: [{ name: '博客', x: 1 }] },
+      2: { projects: [{ name: 'Gitea', kind: 'docker' }] },
+      3: { template: 'gold' },
+    })
+    expect(parseConfig(next).projectUrlsLeft).toBe(false)
+    expect(mergeConfig(raw, {}).node_config).toBe(next.node_config)
+    // Nothing to wipe: the stored text is left exactly as it was.
+    const clean = doc({ 3: { template: 'gold' } })
+    expect(mergeConfig(clean, { values: { motion: true } }).node_config).toBe(clean.node_config)
+    // An unreadable node document still lets global settings be saved.
+    expect(mergeConfig({ node_config: '{bad' }, { values: { motion: true } }).node_config).toBe('{bad')
   })
 })

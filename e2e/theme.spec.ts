@@ -789,6 +789,50 @@ test('a project added in settings shows up on the projects page and long names s
   expect(await tile.evaluate((b) => b.scrollWidth > b.clientWidth)).toBe(true)
 })
 
+test('the answer of an AI agent pasted in settings fills the list, and an address in it is refused', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await page.goto('/settings?node=103')
+  await page.getByRole('button', { name: '节点设置' }).click()
+  await page.locator('#node-select').selectOption('103')
+  await page.getByText('用 AI 查询这台机器').click()
+  await expect(page.getByRole('textbox', { name: '提示词' })).toHaveValue(/只输出一个 JSON 数组/)
+  await page
+    .getByRole('textbox', { name: '粘贴 AI 的结果' })
+    .fill(
+      [
+        '我已检查完毕，结果如下：',
+        '```json',
+        '[{"kind":"docker","name":"Alist","note":"pan.example.com"},',
+        ' {"kind":"docker","name":"Memos"},',
+        ' {"kind":"cron","name":"数据库备份","note":"每天 04:00"}]',
+        '```',
+        '以上为只读检查结果。',
+      ].join('\n'),
+    )
+  await page.getByRole('button', { name: '导入', exact: true }).click()
+  await expect(page.locator('.project-import [role="status"]')).toContainText('新增 3 项，跳过 0 项')
+  await expect(page.locator('.project-row')).toHaveCount(3)
+  const flagged = page.locator('.project-row[data-invalid="true"]')
+  await expect(flagged).toHaveCount(1)
+  const report = await new AxeBuilder({ page }).include('.projects-editor').analyze()
+  expect(report.violations.filter((v) => ['serious', 'critical'].includes(v.impact || ''))).toEqual([])
+  // The address the agent let through keeps the list from being saved until it is changed.
+  await page.getByRole('button', { name: '保存到 Hub' }).click()
+  await expect(page.locator('.save-feedback.failure')).toContainText('项目“Alist”含有网址、IP 或端口')
+  await page.setViewportSize({ width: 320, height: 844 })
+  expect(await noHorizontalOverflow(page), 'settings with the import box open at 320px').toBe(true)
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await flagged.getByRole('textbox', { name: '项目备注' }).fill('网盘')
+  await expect(page.locator('.project-row[data-invalid="true"]')).toHaveCount(0)
+  await saveSettings(page)
+  await page.goto('/projects')
+  const tokyo = page.locator('.pj-machine', { hasText: 'JP-Tokyo' })
+  await expect(tokyo.locator('.pj-text b')).toHaveText(['Alist', 'Memos', '数据库备份'])
+  await expect(tokyo.locator('.pj-group-title')).toHaveText([/Docker/, /定时任务/])
+})
+
 test('links listed before are wiped from the public config with one save', async ({ page, request }) => {
   const api = 'http://127.0.0.1:9911/api/themes/football-monitor/config'
   const raw = await (await request.get(api)).json()

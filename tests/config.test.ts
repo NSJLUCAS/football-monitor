@@ -219,6 +219,18 @@ describe('node projects', () => {
     )
     expect(save('nope')).toThrow(ConfigError)
   })
+  it('refuses to save an address in a project name or note, but still reads one already saved', () => {
+    const save = (projects: unknown) => () => mergeConfig({}, { nodes: { 1: { projects } as never } })
+    expect(save([{ name: 'blog.example.com', kind: 'site' }])).toThrow(
+      '项目“blog.example.com”含有网址、IP 或端口，请改掉后保存',
+    )
+    expect(save([{ name: '面板', kind: 'docker', note: '10.0.0.1:9000' }])).toThrow(
+      '项目“面板”含有网址、IP 或端口',
+    )
+    expect(save([{ name: '备份', kind: 'cron', note: '每天 04:00 acme.sh' }])).not.toThrow()
+    const { nodes } = parseConfig(doc({ 1: { projects: [{ name: 'blog.example.com', kind: 'site' }] } }))
+    expect(nodes['1']!.projects).toEqual([{ name: 'blog.example.com', kind: 'site' }])
+  })
   it('stores projects with their kind and never a link, keeps unknown keys and drops an emptied list', () => {
     const raw = doc({ 1: { future_key: 'keep' }, 999: { projects: [{ name: 'ghost' }] } })
     const saved = mergeConfig(raw, {

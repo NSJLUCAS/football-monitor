@@ -4,6 +4,7 @@ import { migrateTemplate } from './skins'
 import { providerOf } from './providers'
 import { parseRates } from './fleet'
 import { isBuiltinPortrait, replacementPortrait } from './portraits'
+import { looksLikeAddress } from './address'
 import type {
   ConfigPatch,
   GlobalConfig,
@@ -144,6 +145,9 @@ export function validProjects(value: unknown, strict = false): ProjectConfig[] {
       const note = typeof p.note === 'string' ? [...p.note].slice(0, PROJECT_LIMITS.note).join('').trim() : ''
       if (note) project.note = note
     }
+    // Names and notes are public: an address in either is refused on save, and shown as it is when read.
+    if (looksLikeAddress(project.name) || (project.note !== undefined && looksLikeAddress(project.note)))
+      fail(`项目“${name}”含有网址、IP 或端口，请改掉后保存`)
     result.push(project)
   }
   return result

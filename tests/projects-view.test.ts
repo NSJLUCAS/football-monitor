@@ -19,15 +19,19 @@ const fixtures = () =>
 const PROJECTS = {
   1: {
     provider: { id: 'vultr' },
-    projects: [{ name: '博客', url: 'https://blog.example.com', note: '主站' }, { name: 'Gitea' }],
+    projects: [
+      { name: '博客', kind: 'site', note: '主站' },
+      { name: 'Gitea', kind: 'docker' },
+    ],
   },
   2: {
     projects: [
-      { name: '博客', url: 'https://blog2.example.com' },
-      { name: 'Alist', note: '网盘' },
+      { name: '博客', kind: 'site' },
+      { name: 'Alist', kind: 'docker', note: '网盘' },
+      { name: '数据库备份', kind: 'cron', note: '每天 04:00' },
     ],
   },
-  4: { projects: [{ name: 'Umami', url: 'https://stat.example.com' }] },
+  4: { projects: [{ name: 'Umami', kind: 'docker' }] },
 }
 const config = (nodes: unknown) => parseConfig({ node_config: JSON.stringify({ version: 1, nodes }) })
 
@@ -68,10 +72,10 @@ describe('projects page', () => {
   it('shows every machine that has projects, the totals and the idle machines', async () => {
     const { wrapper } = await mountProjects()
     expect(machines(wrapper)).toEqual(['HK-01', 'SG-01', 'DE-01'])
-    expect(stats(wrapper)).toContain('4 个项目')
+    expect(stats(wrapper)).toContain('5 个项目')
     expect(stats(wrapper)).toContain('3 台机器在用')
     expect(stats(wrapper)).toContain('1 台空闲')
-    expect(stats(wrapper)).toContain('2 个项目受离线影响')
+    expect(stats(wrapper)).toContain('3 个项目受离线影响')
     expect(wrapper.find('.pj-down').attributes('data-on')).toBe('true')
     const idle = wrapper.find('.pj-idle')
     expect(idle.text()).toContain('空闲 1 台')
@@ -91,22 +95,19 @@ describe('projects page', () => {
     expect(hk!.find('.pj-provider').attributes('title')).toBe('Vultr')
     expect(sg!.find('.pj-provider').exists()).toBe(false)
   })
-  it('opens a project link in a new tab and leaves a project without one as plain text', async () => {
+  it("groups a machine's projects by kind and links nowhere outside the theme", async () => {
     const { wrapper } = await mountProjects()
-    const [blog, gitea] = wrapper.findAll('.pj-machine')[0]!.findAll('.pj-item')
-    expect(blog!.element.tagName).toBe('A')
-    expect(blog!.attributes()).toMatchObject({
-      href: 'https://blog.example.com',
-      target: '_blank',
-      rel: 'noopener noreferrer',
-      title: '主站',
-    })
-    expect(blog!.find('.pj-text b').text()).toBe('博客')
-    expect(blog!.find('.pj-text small').text()).toBe('blog.example.com')
+    const [hk, sg] = wrapper.findAll('.pj-machine')
+    expect(sg!.findAll('.pj-group-title').map((t) => t.text())).toEqual(['Docker 1', '网站 1', '定时任务 1'])
+    expect(hk!.findAll('.pj-group-title').map((t) => t.text())).toEqual(['Docker 1', '网站 1'])
+    const [gitea, blog] = hk!.findAll('.pj-item')
+    expect(gitea!.find('.pj-text b').text()).toBe('Gitea')
+    expect(gitea!.find('.pj-text small').text()).toBe('Docker')
+    expect(blog!.element.tagName).toBe('DIV')
+    expect(blog!.attributes('title')).toBe('主站')
+    expect(blog!.find('.pj-text small').text()).toBe('主站')
     expect(blog!.find('.pj-tile').text()).toBe('博')
-    expect(gitea!.element.tagName).toBe('DIV')
-    expect(gitea!.attributes('href')).toBeUndefined()
-    expect(gitea!.find('.pj-text small').text()).toBe('未填网址')
+    expect(wrapper.find('a[href^="http"]').exists()).toBe(false)
     expect(wrapper.find('img[src*="example.com"]').exists()).toBe(false)
   })
   it('switches to one row per project and keeps the choice in the address', async () => {
@@ -117,13 +118,12 @@ describe('projects page', () => {
     expect(button(wrapper, '按项目').attributes('aria-pressed')).toBe('true')
     expect(wrapper.find('.pj-machine').exists()).toBe(false)
     const rows = wrapper.findAll('.pj-row')
-    expect(rows).toHaveLength(4)
+    expect(rows).toHaveLength(5)
+    expect(wrapper.find('.pj-thead').text()).toContain('类型')
     const blog = rows.find((r) => r.find('.pj-name').text() === '博客')!
     expect(blog.findAll('.pj-host').map((h) => h.text())).toEqual(['HK-01', 'SG-01离线'])
-    expect(blog.findAll('.pj-url').map((a) => a.attributes('href'))).toEqual([
-      'https://blog.example.com',
-      'https://blog2.example.com',
-    ])
+    expect(blog.find('.pj-kind').text()).toBe('网站')
+    expect(blog.find('.pj-kind').attributes('data-kind')).toBe('site')
     expect(blog.attributes('data-down')).toBe('true')
     expect(rows.find((r) => r.find('.pj-name').text() === 'Gitea')!.attributes('data-down')).toBe('false')
     await button(wrapper, '按机器').trigger('click')
@@ -132,7 +132,7 @@ describe('projects page', () => {
   })
   it('opens straight on the project view from the address', async () => {
     const { wrapper } = await mountProjects('/projects?view=project')
-    expect(wrapper.findAll('.pj-row')).toHaveLength(4)
+    expect(wrapper.findAll('.pj-row')).toHaveLength(5)
   })
   it('searches from its own box, through the address', async () => {
     const { wrapper, router } = await mountProjects()
@@ -145,16 +145,37 @@ describe('projects page', () => {
     expect(wrapper.findAll('.pj-item')).toHaveLength(1)
     expect(wrapper.find('.pj-idle').exists()).toBe(false)
     // The totals describe the fleet, not the search.
-    expect(stats(wrapper)).toContain('4 个项目')
+    expect(stats(wrapper)).toContain('5 个项目')
   })
   it('says so when nothing matches and clears the filters', async () => {
-    const { wrapper, router } = await mountProjects('/projects?q=zzz')
+    const { wrapper, router } = await mountProjects('/projects?q=zzz&kind=docker')
     expect(wrapper.find<HTMLInputElement>('.pj-search input').element.value).toBe('zzz')
     expect(wrapper.find('.empty-state').text()).toContain('没有找到匹配的项目')
     await button(wrapper, '清除筛选').trigger('click')
     await flushPromises()
     expect('q' in router.currentRoute.value.query).toBe(false)
+    expect('kind' in router.currentRoute.value.query).toBe(false)
     expect(machines(wrapper)).toEqual(['HK-01', 'SG-01', 'DE-01'])
+  })
+  it('narrows to one kind through the address, keeps the totals and ignores an unknown kind', async () => {
+    const { wrapper, router } = await mountProjects()
+    const kinds = () => wrapper.find('[role="group"][aria-label="项目类型"]').findAll('button')
+    expect(kinds().map((b) => b.text())).toEqual(['全部', 'Docker', '网站', '定时任务'])
+    await kinds()[3]!.trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.query.kind).toBe('cron')
+    expect(kinds()[3]!.attributes('aria-pressed')).toBe('true')
+    expect(machines(wrapper)).toEqual(['SG-01'])
+    expect(wrapper.findAll('.pj-item').map((i) => i.find('b').text())).toEqual(['数据库备份'])
+    expect(stats(wrapper)).toContain('5 个项目')
+    expect(wrapper.find('.pj-idle').exists()).toBe(false)
+    await kinds()[0]!.trigger('click')
+    await flushPromises()
+    expect('kind' in router.currentRoute.value.query).toBe(false)
+    wrapper.unmount()
+    const odd = await mountProjects('/projects?kind=nope')
+    expect(machines(odd.wrapper)).toEqual(['HK-01', 'SG-01', 'DE-01'])
+    expect(odd.wrapper.find('[aria-label="项目类型"] button').attributes('aria-pressed')).toBe('true')
   })
   it('narrows to a group', async () => {
     const { wrapper } = await mountProjects()

@@ -28,7 +28,7 @@ import CardLiveStrip from '../components/CardLiveStrip.vue'
 import CarrierRow from '../components/CarrierRow.vue'
 import HistoryChart from '../components/HistoryChart.vue'
 import ScoreBreakdown from '../components/ScoreBreakdown.vue'
-import ProjectTile from '../components/ProjectTile.vue'
+import ProjectGroups from '../components/ProjectGroups.vue'
 const store = useMonitorStore(),
   route = useRoute()
 const node = computed(() => store.nodes.find((n) => n.id === Number(route.params.id)))
@@ -271,9 +271,7 @@ const pct = (loss: number) => `${Number(loss.toFixed(1))}%`
           aria-labelledby="projects-title"
         >
           <h2 id="projects-title" class="detail-section-title">部署的项目</h2>
-          <ul class="detail-project-list">
-            <li v-for="p in projects" :key="p.name"><ProjectTile :project="p" /></li>
-          </ul>
+          <ProjectGroups :projects="projects" />
         </section>
         <section v-if="showBilling" id="billing" class="detail-section" aria-labelledby="billing-title">
           <h2 id="billing-title" class="detail-section-title">费用与流量</h2>

@@ -127,16 +127,14 @@
   font-size: 12px;
   white-space: nowrap;
 }
-.pj-list {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 4px;
-  margin: 0;
-  padding: 8px;
-  list-style: none;
+.pj-machine .pj-groups {
+  padding: 10px 8px 8px;
 }
-.pj-list li {
-  min-width: 0;
+.pj-machine .pj-list {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.pj-kinds {
+  flex-wrap: wrap;
 }
 /* What runs on a machine that is away is not reachable either: its tiles lose their colour, the text stays readable. */
 .pj-machine[data-online='false'] .pj-tile {
@@ -180,7 +178,7 @@
 .pj-thead,
 .pj-row {
   display: grid;
-  grid-template-columns: minmax(150px, 220px) minmax(150px, 240px) minmax(200px, 1.2fr) minmax(120px, 1fr);
+  grid-template-columns: minmax(150px, 240px) minmax(96px, 120px) minmax(200px, 1.2fr) minmax(120px, 1fr);
   align-items: center;
   gap: 12px;
   padding: 9px 16px;
@@ -206,31 +204,23 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.pj-urls {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-.pj-url {
+.pj-kind {
   display: inline-flex;
   align-items: center;
+  justify-self: start;
   gap: 5px;
-  min-width: 0;
-  color: var(--primary-text);
-  text-decoration: none;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
 }
-.pj-url span,
 .pj-host span {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-.pj-url svg {
-  flex-shrink: 0;
-}
-.pj-url:hover {
-  text-decoration: underline;
 }
 .pj-hosts {
   display: flex;
@@ -293,7 +283,7 @@
   }
 }
 @media (max-width: 359px) {
-  .pj-list {
+  .pj-machine .pj-list {
     grid-template-columns: minmax(0, 1fr);
   }
 }

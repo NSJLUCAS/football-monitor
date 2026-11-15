@@ -219,14 +219,25 @@ describe('node detail page', () => {
       store.config = {
         ...store.config,
         nodes: {
-          '103': { projects: [{ name: '博客', url: 'https://blog.example.com' }, { name: '定时备份' }] },
+          '103': {
+            projects: [
+              { name: '博客', kind: 'site' },
+              { name: '定时备份', kind: 'cron', note: '每天 04:00' },
+              { name: 'Gitea', kind: 'docker' },
+            ],
+          },
         },
       }
     })
     const section = wrapper.find('section#projects')
     expect(section.find('h2').text()).toBe('部署的项目')
-    expect(section.findAll('.pj-item').map((i) => i.find('b').text())).toEqual(['博客', '定时备份'])
-    expect(section.find('a.pj-item').attributes('href')).toBe('https://blog.example.com')
+    expect(section.findAll('.pj-group-title').map((t) => t.text())).toEqual([
+      'Docker 1',
+      '网站 1',
+      '定时任务 1',
+    ])
+    expect(section.findAll('.pj-item').map((i) => i.find('b').text())).toEqual(['Gitea', '博客', '定时备份'])
+    expect(section.find('a.pj-item').exists()).toBe(false)
     expect(wrapper.find('nav[aria-label="详情分区"]').find('a').attributes('href')).toBe('#projects')
   })
   it("shows today's traffic split and total in the billing panel", async () => {

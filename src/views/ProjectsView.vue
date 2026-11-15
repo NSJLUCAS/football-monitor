@@ -1,24 +1,25 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
-import { Boxes, ExternalLink, Search, Server, WifiOff } from '@lucide/vue'
+import { Boxes, Clock, Container, Globe, Search, Server, WifiOff } from '@lucide/vue'
 import { useMonitorStore } from '../stores/monitor'
 import { flagUrl } from '../domain/flags'
 import { countryName } from '../domain/format'
+import { PROJECT_KINDS } from '../domain/config'
 import {
+  KIND_LABEL,
   byProject,
   machineProjects,
   matchProjects,
   projectSummary,
   tileHue,
   tileLetter,
-  urlHost,
 } from '../domain/projects'
 import { providerBadge } from '../domain/providers'
-import type { MonitorNode } from '../domain/types'
+import type { MonitorNode, ProjectKind } from '../domain/types'
 import { Button } from '../components/ui/button'
 import PageHeading from '../components/PageHeading.vue'
-import ProjectTile from '../components/ProjectTile.vue'
+import ProjectGroups from '../components/ProjectGroups.vue'
 import '../styles/network.css'
 import '../styles/projects.css'
 const store = useMonitorStore(),
@@ -38,12 +39,18 @@ const view = computed<'node' | 'project'>({
   set: (value) => setQuery('view', value === 'project' ? 'project' : undefined),
 })
 const q = computed(() => (typeof route.query.q === 'string' ? route.query.q : ''))
+// An unknown kind in the address shows everything.
+const kind = computed<ProjectKind | null>({
+  get: () => PROJECT_KINDS.find((k) => k === route.query.kind) ?? null,
+  set: (value) => setQuery('kind', value ?? undefined),
+})
+const kindIcons = { docker: Container, site: Globe, cron: Clock }
 const all = computed(() => machineProjects(store.nodes, store.config.nodes))
 const grouped = computed(() => all.value.filter((m) => group.value === null || m.node.group === group.value))
 const any = computed(() => all.value.some((m) => m.projects.length))
 // The totals describe the group, whatever is typed in the search box.
 const summary = computed(() => projectSummary(grouped.value))
-const shown = computed(() => matchProjects(grouped.value, q.value))
+const shown = computed(() => matchProjects(grouped.value, q.value, kind.value))
 const idle = computed(() => grouped.value.filter((m) => !m.projects.length))
 const entries = computed(() => byProject(shown.value))
 const flag = (node: MonitorNode) => (node.country ? flagUrl(node.country) : undefined)
@@ -51,7 +58,10 @@ const badge = (node: MonitorNode) => providerBadge(store.config.nodes[String(nod
 const score = (node: MonitorNode) => (node.online ? String(store.scores[node.id]?.overall ?? '—') : 'OFF')
 function clearFilters() {
   group.value = null
-  setQuery('q', undefined)
+  const query = { ...route.query }
+  delete query.q
+  delete query.kind
+  void router.replace({ query })
 }
 </script>
 <template>
@@ -120,10 +130,29 @@ function clearFilters() {
           :value="q"
           type="search"
           aria-label="搜索项目"
-          placeholder="搜索项目、域名或机器"
+          placeholder="搜索项目、备注或机器"
           autocomplete="off"
           @input="setQuery('q', ($event.target as HTMLInputElement).value || undefined)"
       /></label>
+      <span class="ns-ranges pj-kinds" role="group" aria-label="项目类型"
+        ><button
+          type="button"
+          :class="{ selected: kind === null }"
+          :aria-pressed="kind === null"
+          @click="kind = null"
+        >
+          全部</button
+        ><button
+          v-for="k in PROJECT_KINDS"
+          :key="k"
+          type="button"
+          :class="{ selected: kind === k }"
+          :aria-pressed="kind === k"
+          @click="kind = k"
+        >
+          {{ KIND_LABEL[k] }}
+        </button></span
+      >
       <span class="ns-ranges" role="group" aria-label="查看方式"
         ><button
           type="button"
@@ -145,7 +174,7 @@ function clearFilters() {
     <div v-if="!shown.length" class="empty-state panel">
       <Boxes :size="32" />
       <h3>没有找到匹配的项目</h3>
-      <p>试试其他名称或域名，或切换分组。</p>
+      <p>试试其他名称或备注，或切换分组与类型。</p>
       <Button variant="outline" @click="clearFilters">清除筛选</Button>
     </div>
     <div v-else-if="view === 'node'" class="pj-grid">
@@ -177,16 +206,14 @@ function clearFilters() {
           ><span class="pj-score" title="综合评分">{{ score(m.node) }}</span
           ><span class="pj-count">{{ m.projects.length }} 个项目</span></RouterLink
         >
-        <ul class="pj-list">
-          <li v-for="p in m.projects" :key="p.name"><ProjectTile :project="p" /></li>
-        </ul>
+        <ProjectGroups :projects="m.projects" />
       </section>
     </div>
     <section v-else class="pj-table panel" aria-label="按项目查看">
       <div class="pj-thead" aria-hidden="true">
         <span
           >项目 <small>{{ entries.length }}</small></span
-        ><span>网址</span><span>所在机器</span><span>备注</span>
+        ><span>类型</span><span>所在机器</span><span>备注</span>
       </div>
       <div v-for="e in entries" :key="e.key" class="pj-row" :data-down="e.down">
         <span class="pj-item"
@@ -195,17 +222,8 @@ function clearFilters() {
           }}</i
           ><b class="pj-name">{{ e.name }}</b></span
         >
-        <span class="pj-urls"
-          ><a
-            v-for="url in e.urls"
-            :key="url"
-            class="pj-url"
-            :href="url"
-            target="_blank"
-            rel="noopener noreferrer"
-            ><span>{{ urlHost(url) }}</span
-            ><ExternalLink :size="12" aria-hidden="true" /></a
-          ><span v-if="!e.urls.length" class="pj-muted">—</span></span
+        <span class="pj-kind" :data-kind="e.kind"
+          ><component :is="kindIcons[e.kind]" :size="13" aria-hidden="true" />{{ KIND_LABEL[e.kind] }}</span
         >
         <span class="pj-hosts"
           ><RouterLink
@@ -221,7 +239,7 @@ function clearFilters() {
         <span class="pj-muted pj-note" :title="e.notes.join(' · ')">{{ e.notes.join(' · ') || '—' }}</span>
       </div>
     </section>
-    <p v-if="view === 'node' && !q.trim() && idle.length" class="pj-idle panel">
+    <p v-if="view === 'node' && !q.trim() && !kind && idle.length" class="pj-idle panel">
       <b>空闲 {{ idle.length }} 台</b>
       <RouterLink v-for="m in idle" :key="m.node.id" :to="`/node/${m.node.id}`"
         ><img v-if="flag(m.node)" class="nr-flag" :src="flag(m.node)" alt="" />{{ m.node.name }}</RouterLink

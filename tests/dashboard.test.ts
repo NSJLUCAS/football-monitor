@@ -366,16 +366,16 @@ describe('dashboard', () => {
 })
 
 describe('search by project', () => {
-  it('finds a node by the name or the link host of a project on it', async () => {
+  it('finds a node by the name or the kind of a project on it', async () => {
     const { wrapper, router, store } = await mountDashboard('/?q=vaultw')
     expect(cardNames(wrapper)).toEqual([])
     store.config = {
       ...store.config,
-      nodes: { 2: { projects: [{ name: 'Vaultwarden', url: 'https://vault.example.com' }] } },
+      nodes: { 2: { projects: [{ name: 'Vaultwarden', kind: 'docker' }] } },
     }
     await flushPromises()
     expect(cardNames(wrapper)).toEqual(['东京 B'])
-    await router.replace('/?q=VAULT.example')
+    await router.replace('/?q=DOCKER')
     await flushPromises()
     expect(cardNames(wrapper)).toEqual(['东京 B'])
   })
@@ -471,7 +471,7 @@ describe('top bar search', () => {
     await flushPromises()
     expect(wrapper.find('.main-nav a[href="/projects"]').text()).toBe('项目')
     store.me = { ...store.me, authed: false }
-    store.config = { ...store.config, nodes: { 1: { projects: [{ name: '博客' }] } } }
+    store.config = { ...store.config, nodes: { 1: { projects: [{ name: '博客', kind: 'site' }] } } }
     await flushPromises()
     expect(wrapper.find('.main-nav a[href="/projects"]').text()).toBe('项目')
     expect(wrapper.find('header .projects-link').attributes('aria-label')).toBe('项目')

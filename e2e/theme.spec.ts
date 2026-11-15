@@ -732,6 +732,11 @@ test('projects page shows what runs where, by machine and by project, on desktop
   await page.locator('header .projects-link').click()
   await expect(page).toHaveURL(/\/projects$/)
   await expect(page.locator('.pj-machine')).toHaveCount(4)
+  // A note is read in full on a phone: it wraps instead of ending in an ellipsis.
+  const cut = await page
+    .locator('.pj-text small')
+    .evaluateAll((notes) => notes.filter((n) => n.scrollWidth > n.clientWidth).map((n) => n.textContent))
+  expect(cut, 'notes cut short at 390px').toEqual([])
   await page.screenshot({ path: `${shots}/projects-390.png`, fullPage: true })
 
   // The same projects on the node's own page, and a node found from the home page by what it runs.

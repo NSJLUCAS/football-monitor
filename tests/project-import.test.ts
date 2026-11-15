@@ -56,6 +56,14 @@ describe('the prompt for an SSH agent', () => {
     expect(PROJECT_PROMPT).toContain('不要输出域名、IP、端口')
     expect(PROJECT_PROMPT).toContain('20')
   })
+  it('says how to name a site without its domain, and refuses generic names', () => {
+    expect(PROJECT_PROMPT).toContain('反向代理到')
+    expect(PROJECT_PROMPT).toContain('<title>')
+    expect(PROJECT_PROMPT).toContain('根目录')
+    expect(PROJECT_PROMPT).toContain('子域名最前面')
+    expect(PROJECT_PROMPT).toContain('不要用“静态网站”“反向代理网站”这类笼统的名称')
+    expect(PROJECT_PROMPT).toContain('每个站点单独一项')
+  })
 })
 
 describe('reading what the agent answered', () => {

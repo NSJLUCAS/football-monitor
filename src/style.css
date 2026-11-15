@@ -2694,7 +2694,7 @@ svg {
 /* A project tile: shared by the projects page and the node page. */
 .pj-item {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 9px;
   min-width: 0;
   padding: 6px;
@@ -2723,11 +2723,15 @@ svg {
   flex-direction: column;
   min-width: 0;
 }
-.pj-text b,
-.pj-text small {
+.pj-text b {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+/* The note is read in full: it wraps rather than ending in an ellipsis. */
+.pj-text small {
+  overflow-wrap: anywhere;
+  line-height: 1.45;
 }
 .pj-text b {
   font-size: 13px;

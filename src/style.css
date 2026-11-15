@@ -2797,6 +2797,59 @@ svg {
   gap: 8px 12px;
   margin-top: 12px;
 }
+.project-row input[aria-invalid='true'] {
+  border-color: var(--danger);
+}
+/* Asking an AI agent on the machine, then pasting its answer. */
+.project-import {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--subtle);
+}
+.project-import summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+}
+.project-import ol {
+  margin: 10px 0;
+  padding-left: 18px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.7;
+}
+.project-import textarea {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--background);
+  color: var(--foreground);
+  font-size: 12px;
+  line-height: 1.6;
+  resize: vertical;
+}
+.project-import .project-prompt {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+.project-import .project-actions {
+  margin: 8px 0 12px;
+}
+.project-import .project-actions:last-of-type {
+  margin-bottom: 0;
+}
+.project-import .form-help,
+.project-import .form-error {
+  margin: 8px 0 0;
+}
 .projects-editor .form-error {
   margin-top: 4px;
 }

@@ -1,7 +1,8 @@
-import { describe, expect, it, vi } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { flushPromises, mount } from '@vue/test-utils'
 import ProjectsEditor from '../src/components/ProjectsEditor.vue'
 import { saveConfig } from '../src/services/api'
+import { PROJECT_PROMPT } from '../src/domain/projectImport'
 import type { ProjectConfig } from '../src/domain/types'
 
 const editor = (modelValue?: ProjectConfig[]) => mount(ProjectsEditor, { props: { modelValue, nodeId: 7 } })
@@ -117,5 +118,74 @@ describe('saving a half-filled project row', () => {
       ),
     ).rejects.toThrow('项目名称需为 1–40 字')
     expect(fetcher.mock.calls.some(([, init]) => init?.method === 'PUT')).toBe(false)
+  })
+})
+
+describe('asking an AI agent and pasting its answer', () => {
+  afterEach(() => vi.unstubAllGlobals())
+  const importBox = (w: ReturnType<typeof editor>) => w.find('.project-import')
+  const run = (w: ReturnType<typeof editor>) =>
+    importBox(w)
+      .findAll('button')
+      .find((b) => b.text() === '导入')!
+  it('shows the prompt and copies it', async () => {
+    const writeText = vi.fn(async () => {})
+    vi.stubGlobal('navigator', { clipboard: { writeText } })
+    const w = editor()
+    const box = importBox(w)
+    expect(box.find('summary').text()).toContain('用 AI 查询这台机器')
+    expect(box.find<HTMLTextAreaElement>('textarea[aria-label="提示词"]').element.value).toBe(PROJECT_PROMPT)
+    await box
+      .findAll('button')
+      .find((b) => b.text().includes('复制提示词'))!
+      .trigger('click')
+    await flushPromises()
+    expect(writeText).toHaveBeenCalledWith(PROJECT_PROMPT)
+    expect(box.find('[role="status"]').text()).toContain('已复制')
+  })
+  it('asks for a manual copy when the clipboard refuses', async () => {
+    vi.stubGlobal('navigator', {
+      clipboard: { writeText: vi.fn(async () => Promise.reject(new Error('denied'))) },
+    })
+    const w = editor()
+    await importBox(w)
+      .findAll('button')
+      .find((b) => b.text().includes('复制提示词'))!
+      .trigger('click')
+    await flushPromises()
+    expect(importBox(w).find('[role="status"]').text()).toContain('手动复制')
+  })
+  it('adds what the agent found after what is listed and says how many', async () => {
+    const w = editor([{ name: 'Alist', kind: 'docker' }])
+    const paste = importBox(w).find<HTMLTextAreaElement>('textarea[aria-label="粘贴 AI 的结果"]')
+    await paste.setValue(
+      '结果：```json\n[{"kind":"docker","name":"alist"},{"kind":"cron","name":"备份","note":"每天 04:00"}]\n```',
+    )
+    await run(w).trigger('click')
+    expect(last(w)).toEqual([
+      { name: 'Alist', kind: 'docker' },
+      { name: '备份', kind: 'cron', note: '每天 04:00' },
+    ])
+    expect(importBox(w).find('[role="status"]').text()).toBe('新增 1 项，跳过 1 项。请检查后保存到 Hub。')
+    expect(paste.element.value).toBe('')
+  })
+  it('says what is wrong with a paste that holds no list and changes nothing', async () => {
+    const w = editor()
+    await importBox(w).find('textarea[aria-label="粘贴 AI 的结果"]').setValue('抱歉，我无法登录')
+    await run(w).trigger('click')
+    expect(w.emitted('update:modelValue')).toBeUndefined()
+    expect(importBox(w).find('[role="alert"]').text()).toBe('没有找到可导入的 JSON 列表')
+  })
+  it('marks a row that carries an address and gives the reason saving would', () => {
+    const w = editor([
+      { name: '博客', kind: 'site', note: 'blog.example.com' },
+      { name: 'Gitea', kind: 'docker' },
+    ])
+    const [blog, gitea] = w.findAll('.project-row')
+    expect(blog!.attributes('data-invalid')).toBe('true')
+    expect(blog!.find('input[aria-label="项目备注"]').attributes('aria-invalid')).toBe('true')
+    expect(blog!.find('input[aria-label="项目名称"]').attributes('aria-invalid')).toBeUndefined()
+    expect(gitea!.attributes('data-invalid')).toBeUndefined()
+    expect(w.find('.form-error').text()).toBe('项目“博客”含有网址、IP 或端口，请改掉后保存')
   })
 })

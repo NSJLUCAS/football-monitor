@@ -2313,7 +2313,8 @@ svg {
 }
 .form-field input,
 .form-field select,
-.project-row input {
+.project-row input,
+.project-row select {
   width: 100%;
   border: 1px solid var(--border);
   border-radius: 6px;
@@ -2784,7 +2785,7 @@ svg {
 }
 .project-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) minmax(0, 1.2fr) auto;
+  grid-template-columns: minmax(96px, 0.5fr) minmax(0, 1fr) minmax(0, 1.4fr) auto;
   gap: 8px;
   align-items: center;
   margin-bottom: 8px;

@@ -224,7 +224,9 @@ async function save() {
   >
     <div v-if="store.me?.authed" class="settings-save">
       <span v-if="dirty" class="dirty-label">{{ unsaved ? '含未托管图片' : '有未保存更改' }}</span
-      ><Button :disabled="!dirty || store.saving || !!store.config.configWarning" @click="save"
+      ><Button
+        :disabled="(!dirty && !store.config.projectUrlsLeft) || store.saving || !!store.config.configWarning"
+        @click="save"
         ><Save :size="15" />{{ store.saving ? '正在确认保存…' : '保存到 Hub' }}</Button
       >
     </div>
@@ -238,6 +240,10 @@ async function save() {
   <template v-else>
     <div v-if="store.config.configWarning" class="inline-notice" role="alert">
       {{ store.config.configWarning }} 请先在 Hub 主题设置中备份并修复 JSON。
+    </div>
+    <!-- Links listed before projects dropped them are still readable in the public config until the next save. -->
+    <div v-else-if="store.config.projectUrlsLeft" class="inline-notice project-urls-notice" role="status">
+      之前登记的项目网址仍保存在公开设置里，页面已不再显示。点“保存到 Hub”即可把它们从 Hub 中清除。
     </div>
     <p v-if="message" class="save-feedback success" role="status"><Check :size="16" />{{ message }}</p>
     <p v-if="error" class="save-feedback failure" role="alert">{{ error }}</p>

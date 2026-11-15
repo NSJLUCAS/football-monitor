@@ -151,23 +151,24 @@ export function nodes() {
 // Sample projects for the isolated mock only: one machine left idle, one project on two machines.
 const demoProjects = [
   [
-    { name: '博客', url: 'https://blog.example.com', note: '个人博客' },
-    { name: '图床', url: 'https://img.example.com' },
-    { name: 'Uptime Kuma', url: 'https://status.example.com', note: '监控面板' },
+    { name: '博客', kind: 'site', note: '个人博客' },
+    { name: '图床', kind: 'docker' },
+    { name: 'Uptime Kuma', kind: 'docker', note: '监控面板' },
   ],
   [
-    { name: 'API 网关', url: 'https://api.example.com', note: '给小程序用' },
-    { name: 'Vaultwarden', url: 'https://vault.example.com' },
+    { name: 'API 网关', kind: 'site', note: '给小程序用' },
+    { name: 'Vaultwarden', kind: 'docker' },
+    { name: '证书续期', kind: 'cron', note: '每周一 03:00 acme.sh' },
   ],
   undefined,
   [
-    { name: 'Alist', url: 'https://pan.example.com', note: '网盘挂载' },
-    { name: 'RSSHub', url: 'https://rss.example.com' },
-    { name: 'Memos', url: 'https://memo.example.com' },
-    { name: '定时备份', note: '每天 04:00 打包到对象存储' },
-    { name: '博客', url: 'https://blog.example.com', note: '备用节点' },
+    { name: 'Alist', kind: 'docker', note: '网盘挂载' },
+    { name: 'RSSHub', kind: 'docker' },
+    { name: 'Memos', kind: 'docker' },
+    { name: '定时备份', kind: 'cron', note: '每天 04:00 打包到对象存储' },
+    { name: '博客', kind: 'site', note: '备用节点' },
   ],
-  [{ name: 'Gitea', url: 'https://git.example.com', note: '私有仓库' }],
+  [{ name: 'Gitea', kind: 'docker', note: '私有仓库' }],
 ]
 export const initialConfig = {
   preserved_external_setting: 'must survive saves',

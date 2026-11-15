@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Plus, Trash2 } from '@lucide/vue'
-import { PROJECT_LIMITS, validProjects } from '../domain/config'
+import { PROJECT_KINDS, PROJECT_LIMITS, validProjects } from '../domain/config'
+import { KIND_LABEL } from '../domain/projects'
 import type { ProjectConfig } from '../domain/types'
 import { Button } from './ui/button'
 const props = defineProps<{ modelValue: ProjectConfig[] | undefined; nodeId: number }>()
@@ -17,22 +18,18 @@ const problem = computed(() => {
     return e instanceof Error ? e.message : '项目列表不合法'
   }
 })
-function change(index: number, key: keyof ProjectConfig, value: string) {
+function change(index: number, key: 'name' | 'kind' | 'note', value: string) {
   emit(
     'update:modelValue',
     list.value.map((p, i) => {
       if (i !== index) return p
-      const next = { ...p, [key]: value }
-      // Optional fields left empty stay out of the saved config.
-      return {
-        name: next.name,
-        ...(next.url ? { url: next.url } : {}),
-        ...(next.note ? { note: next.note } : {}),
-      }
+      const next = { ...p, [key]: value } as ProjectConfig
+      // An empty note stays out of the saved config.
+      return { name: next.name, kind: next.kind, ...(next.note ? { note: next.note } : {}) }
     }),
   )
 }
-const add = () => emit('update:modelValue', [...list.value, { name: '' }])
+const add = () => emit('update:modelValue', [...list.value, { name: '', kind: 'site' }])
 const remove = (index: number) =>
   emit(
     'update:modelValue',
@@ -42,10 +39,17 @@ const remove = (index: number) =>
 <template>
   <div class="projects-editor">
     <div class="settings-callout">
-      <strong>项目名称、网址与备注对所有访客公开。</strong>
-      <p>不要填写端口、内网地址、后台入口或任何密钥。网址只接受公开的 https 地址，可以不填。</p>
+      <strong>项目名称、类型与备注对所有访客公开。</strong>
+      <p>不要填写网址、端口、内网地址、后台入口或任何密钥。定时任务的执行时间可以写在备注里。</p>
     </div>
     <div v-for="(p, i) in list" :key="i" class="project-row">
+      <select
+        :value="p.kind"
+        aria-label="项目类型"
+        @change="change(i, 'kind', ($event.target as HTMLSelectElement).value)"
+      >
+        <option v-for="k in PROJECT_KINDS" :key="k" :value="k">{{ KIND_LABEL[k] }}</option>
+      </select>
       <input
         :id="`project-${nodeId}-${i}-name`"
         :value="p.name"
@@ -55,18 +59,9 @@ const remove = (index: number) =>
         @input="change(i, 'name', ($event.target as HTMLInputElement).value)"
       />
       <input
-        :value="p.url ?? ''"
-        type="url"
-        inputmode="url"
-        aria-label="项目网址"
-        placeholder="https://"
-        :maxlength="PROJECT_LIMITS.url"
-        @input="change(i, 'url', ($event.target as HTMLInputElement).value.trim())"
-      />
-      <input
         :value="p.note ?? ''"
         aria-label="项目备注"
-        placeholder="备注（可选）"
+        :placeholder="p.kind === 'cron' ? '执行时间与内容，如 每天 04:00 备份' : '备注（可选）'"
         :maxlength="PROJECT_LIMITS.note"
         @input="change(i, 'note', ($event.target as HTMLInputElement).value)"
       />

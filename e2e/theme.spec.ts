@@ -682,14 +682,23 @@ test('projects page shows what runs where, by machine and by project, on desktop
   await expect(page.locator('.pj-machine')).toHaveCount(4)
   await expect(page.locator('.pj-idle')).toContainText('空闲 1 台')
   await expect(page.locator('.pj-idle')).toContainText('JP-Tokyo')
-  await expect(page.locator('.pj-stats')).toContainText('10 个项目')
+  await expect(page.locator('.pj-stats')).toContainText('11 个项目')
+  await expect(page.locator('.pj-machine', { hasText: 'SG-01' }).locator('.pj-group-title')).toHaveText([
+    /Docker/,
+    /网站/,
+    /定时任务/,
+  ])
   await expect(page.locator('.pj-down')).toHaveAttribute('data-on', 'false')
   await page.screenshot({ path: `${shots}/projects-1440.png`, fullPage: true })
 
   await page.getByRole('button', { name: '按项目', exact: true }).click()
   await expect(page).toHaveURL(/view=project/)
-  await expect(page.locator('.pj-row')).toHaveCount(10)
+  await expect(page.locator('.pj-row')).toHaveCount(11)
   await expect(page.locator('.pj-row', { hasText: '博客' }).locator('.pj-host')).toHaveCount(2)
+  await page.getByRole('group', { name: '项目类型' }).getByRole('button', { name: '定时任务' }).click()
+  await expect(page).toHaveURL(/kind=cron/)
+  await expect(page.locator('.pj-row .pj-name')).toHaveText(['定时备份', '证书续期'])
+  await page.getByRole('group', { name: '项目类型' }).getByRole('button', { name: '全部' }).click()
   await page.getByRole('searchbox', { name: '搜索项目' }).fill('gitea')
   await expect(page.locator('.pj-row')).toHaveCount(1)
   await expect(page).toHaveURL(/q=gitea/)
@@ -731,7 +740,8 @@ test('projects page shows what runs where, by machine and by project, on desktop
   await expect(page.locator('#projects .pj-item')).toHaveCount(5)
   await page.goto('/?q=gitea')
   await expect(page.locator('.player-card')).toHaveCount(1)
-  expect(outside, 'nothing is fetched from a project link').toEqual([])
+  expect(await page.locator('a[href*="example.com"]').count()).toBe(0)
+  expect(outside, 'nothing is fetched for a project').toEqual([])
   expect(errors).toEqual([])
 })
 
@@ -751,16 +761,16 @@ test('a project added in settings shows up on the projects page and long names s
   await page
     .getByRole('textbox', { name: '项目名称' })
     .fill('一个名字特别特别长的项目用来检查窄屏时会不会把页面撑宽')
+  await page.getByRole('combobox', { name: '项目类型' }).selectOption('cron')
   await page
-    .getByRole('textbox', { name: '项目网址' })
-    .fill('https://a-very-long-subdomain-name-for-overflow-check.example.com/path')
+    .getByRole('textbox', { name: '项目备注' })
+    .fill('每天凌晨四点把数据库和上传目录一起打包上传到对象存储并保留三十天')
   await saveSettings(page)
   await page.reload()
   await page.getByRole('button', { name: '节点设置' }).click()
   await page.locator('#node-select').selectOption('103')
-  await expect(page.getByRole('textbox', { name: '项目网址' })).toHaveValue(
-    'https://a-very-long-subdomain-name-for-overflow-check.example.com/path',
-  )
+  await expect(page.getByRole('combobox', { name: '项目类型' })).toHaveValue('cron')
+  await expect(page.getByRole('textbox', { name: '项目网址' })).toHaveCount(0)
   // Putting the node's look back to defaults is about the card, not about what runs on the machine.
   await page.getByRole('button', { name: '恢复此节点的全部默认设置' }).click()
   await expect(page.getByRole('textbox', { name: '项目名称' })).toHaveCount(1)
@@ -777,6 +787,31 @@ test('a project added in settings shows up on the projects page and long names s
   const tile = page.locator('.pj-machine', { hasText: 'JP-Tokyo' }).locator('.pj-text b')
   await page.goto('/projects')
   expect(await tile.evaluate((b) => b.scrollWidth > b.clientWidth)).toBe(true)
+})
+
+test('links listed before are wiped from the public config with one save', async ({ page, request }) => {
+  const api = 'http://127.0.0.1:9911/api/themes/football-monitor/config'
+  const raw = await (await request.get(api)).json()
+  const doc = JSON.parse(raw.node_config)
+  doc.nodes['101'].projects[0].url = 'https://old-link.example.com'
+  await request.put(api, { data: { ...raw, node_config: JSON.stringify(doc) } })
+  await page.goto('/projects')
+  await expect(page.locator('.pj-machine').first()).toBeVisible()
+  expect(await page.content()).not.toContain('old-link')
+  await page.goto('/settings')
+  const notice = page.locator('.project-urls-notice')
+  await expect(notice).toContainText('之前登记的项目网址仍保存在公开设置里')
+  await saveSettings(page)
+  await expect(notice).toHaveCount(0)
+  const saved = await (await request.get(api)).json()
+  expect(saved.node_config).not.toContain('old-link')
+  expect(saved.preserved_external_setting).toBe('must survive saves')
+  expect(JSON.parse(saved.node_config).nodes['101'].projects[0]).toEqual({
+    name: '博客',
+    kind: 'site',
+    note: '个人博客',
+  })
+  await expect(page.getByRole('button', { name: '保存到 Hub' })).toBeDisabled()
 })
 
 for (const appearance of ['dark', 'light'] as const)

@@ -208,7 +208,12 @@ describe('node projects', () => {
     expect(save([{ name: 'x'.repeat(41), kind: 'site' }])).toThrow('项目名称需为 1–40 字')
     expect(save([{ name: 'a', kind: 'nope' }])).toThrow('项目类型无效')
     expect(save([{ name: 'a', kind: 'site', note: 'n'.repeat(81) }])).toThrow('项目备注最多 80 字')
-    expect(save([{ name: 'Blog', kind: 'site' }, { name: 'blog ', kind: 'docker' }])).toThrow('项目“blog”重复')
+    expect(
+      save([
+        { name: 'Blog', kind: 'site' },
+        { name: 'blog ', kind: 'docker' },
+      ]),
+    ).toThrow('项目“blog”重复')
     expect(save(Array.from({ length: 21 }, (_, i) => ({ name: `p${i}`, kind: 'site' })))).toThrow(
       '每台机器最多 20 个项目',
     )
@@ -241,7 +246,11 @@ describe('node projects', () => {
     const raw = {
       motion: false,
       ...doc({
-        1: { template: 'gold', future_key: 'keep', projects: [{ name: '博客', url: 'https://b.example.com', x: 1 }] },
+        1: {
+          template: 'gold',
+          future_key: 'keep',
+          projects: [{ name: '博客', url: 'https://b.example.com', x: 1 }],
+        },
         2: { projects: [{ name: 'Gitea', kind: 'docker', url: 'https://g.example.com' }] },
         3: { template: 'gold' },
       }),

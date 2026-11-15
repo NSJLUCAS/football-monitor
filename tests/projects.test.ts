@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { normalizeNodes } from '../src/domain/normalize'
 import {
+  KIND_LABEL,
   byProject,
+  kindGroups,
   machineProjects,
   matchProjects,
   projectKey,
@@ -9,7 +11,6 @@ import {
   projectSummary,
   tileHue,
   tileLetter,
-  urlHost,
 } from '../src/domain/projects'
 import type { NodeConfig } from '../src/domain/types'
 
@@ -22,15 +23,21 @@ const nodes = () =>
     ],
   })
 const config: Record<string, NodeConfig> = {
-  '1': { projects: [{ name: '博客', url: 'https://blog.example.com', note: '主站' }, { name: 'Gitea' }] },
+  '1': {
+    projects: [
+      { name: '博客', kind: 'site', note: '主站' },
+      { name: 'Gitea', kind: 'docker' },
+      { name: '数据库备份', kind: 'cron', note: '每天 04:00' },
+    ],
+  },
   '2': {
     projects: [
-      { name: ' 博客', url: 'https://blog2.example.com' },
-      { name: 'Alist', note: '网盘' },
+      { name: ' 博客', kind: 'site' },
+      { name: 'Alist', kind: 'docker', note: '网盘' },
     ],
   },
   // A node the Hub no longer lists.
-  '999': { projects: [{ name: 'ghost' }] },
+  '999': { projects: [{ name: 'ghost', kind: 'site' }] },
 }
 const list = () => machineProjects(nodes(), config)
 const names = (l: ReturnType<typeof list>) =>
@@ -44,32 +51,57 @@ describe('projects by machine', () => {
     expect(JSON.stringify(l)).not.toContain('ghost')
   })
   it('counts projects, machines in use, idle machines and projects on an offline machine', () => {
-    expect(projectSummary(list())).toEqual({ projects: 3, machines: 2, idle: 1, down: 2 })
+    expect(projectSummary(list())).toEqual({ projects: 4, machines: 2, idle: 1, down: 2 })
     expect(projectSummary([])).toEqual({ projects: 0, machines: 0, idle: 0, down: 0 })
   })
-  it('searches project name, link host, note and machine name', () => {
+  it('searches project name, note, kind and machine name', () => {
     expect(names(matchProjects(list(), ''))).toEqual([
-      ['HK-01', ['博客', 'Gitea']],
+      ['HK-01', ['博客', 'Gitea', '数据库备份']],
       ['SG-01', ['博客', 'Alist']],
     ])
-    expect(names(matchProjects(list(), ' BLOG2 '))).toEqual([['SG-01', ['博客']]])
-    expect(names(matchProjects(list(), 'hk'))).toEqual([['HK-01', ['博客', 'Gitea']]])
+    expect(names(matchProjects(list(), ' GITEA '))).toEqual([['HK-01', ['Gitea']]])
+    expect(names(matchProjects(list(), 'hk'))).toEqual([['HK-01', ['博客', 'Gitea', '数据库备份']]])
     expect(names(matchProjects(list(), '网盘'))).toEqual([['SG-01', ['Alist']]])
+    expect(names(matchProjects(list(), '定时任务'))).toEqual([['HK-01', ['数据库备份']]])
+    expect(names(matchProjects(list(), 'docker'))).toEqual([
+      ['HK-01', ['Gitea']],
+      ['SG-01', ['Alist']],
+    ])
     expect(matchProjects(list(), 'zzz')).toEqual([])
+  })
+  it('narrows to one kind, even on a machine found by its own name', () => {
+    expect(names(matchProjects(list(), '', 'docker'))).toEqual([
+      ['HK-01', ['Gitea']],
+      ['SG-01', ['Alist']],
+    ])
+    expect(names(matchProjects(list(), 'hk', 'cron'))).toEqual([['HK-01', ['数据库备份']]])
+    expect(matchProjects(list(), 'sg', 'cron')).toEqual([])
+    expect(names(matchProjects(list(), '', null))).toHaveLength(2)
+  })
+})
+describe('projects grouped by kind', () => {
+  it('puts Docker, then sites, then scheduled tasks, and leaves empty kinds out', () => {
+    const groups = kindGroups(config['1']!.projects!.slice().reverse())
+    expect(groups.map((g) => g.kind)).toEqual(['docker', 'site', 'cron'])
+    expect(groups.map((g) => g.projects.map((p) => p.name))).toEqual([['Gitea'], ['博客'], ['数据库备份']])
+    expect(kindGroups(config['2']!.projects!).map((g) => g.kind)).toEqual(['docker', 'site'])
+    expect(kindGroups([])).toEqual([])
+    expect(KIND_LABEL).toEqual({ docker: 'Docker', site: '网站', cron: '定时任务' })
   })
 })
 describe('projects merged across machines', () => {
-  it('joins the same name whatever its case or padding and keeps every link', () => {
+  it('joins the same name whatever its case or padding and keeps its kind', () => {
     const entries = byProject(list())
     expect(entries.map((e) => e.name)).toEqual(
-      ['博客', 'Alist', 'Gitea'].sort((a, b) => a.localeCompare(b, 'zh-Hans-CN')),
+      ['博客', 'Alist', 'Gitea', '数据库备份'].sort((a, b) => a.localeCompare(b, 'zh-Hans-CN')),
     )
     const blog = entries.find((e) => e.key === projectKey('博客'))!
-    expect(blog.urls).toEqual(['https://blog.example.com', 'https://blog2.example.com'])
+    expect(blog.kind).toBe('site')
     expect(blog.notes).toEqual(['主站'])
     expect(blog.hosts.map((n) => n.name)).toEqual(['HK-01', 'SG-01'])
     expect(blog.down).toBe(true)
-    expect(entries.find((e) => e.name === 'Gitea')!.down).toBe(false)
+    expect('urls' in blog).toBe(false)
+    expect(entries.find((e) => e.name === 'Gitea')!).toMatchObject({ kind: 'docker', down: false })
     expect(projectKey(' BLOG ')).toBe('blog')
   })
 })
@@ -85,16 +117,12 @@ describe('project display helpers', () => {
     expect(Number.isInteger(hue) && hue >= 0 && hue < 360).toBe(true)
     expect(tileHue('Gitea')).not.toBe(hue)
   })
-  it('reads the host of a link', () => {
-    expect(urlHost('https://Blog.Example.com/a?b')).toBe('blog.example.com')
-    expect(urlHost('nope')).toBe('')
-    expect(urlHost()).toBe('')
-  })
   it('builds the text the home page search looks through', () => {
     const text = projectSearchText(config['1']!.projects)
     expect(text).toContain('博客')
     expect(text).toContain('gitea')
-    expect(text).toContain('blog.example.com')
+    expect(text).toContain('docker')
+    expect(text).toContain('定时任务')
     expect(projectSearchText(undefined)).toBe('')
   })
 })

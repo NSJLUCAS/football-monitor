@@ -1,4 +1,5 @@
-import type { MonitorNode, NodeConfig, ProjectConfig } from './types'
+import { PROJECT_KINDS } from './config'
+import type { MonitorNode, NodeConfig, ProjectConfig, ProjectKind } from './types'
 
 /** One Hub node with what the owner listed on it; an empty list is an idle machine. */
 export interface MachineProjects {
@@ -9,7 +10,8 @@ export interface MachineProjects {
 export interface ProjectEntry {
   key: string
   name: string
-  urls: string[]
+  /** The kind it was first listed with. */
+  kind: ProjectKind
   notes: string[]
   hosts: MonitorNode[]
   /** At least one of its machines is offline. */
@@ -24,13 +26,14 @@ export interface ProjectSummary {
 
 /** The same project on two machines is matched by name alone, whatever its case or padding. */
 export const projectKey = (name: string) => name.trim().toLowerCase()
-export function urlHost(url?: string): string {
-  try {
-    return url ? new URL(url).hostname : ''
-  } catch {
-    return ''
-  }
-}
+export const KIND_LABEL: Record<ProjectKind, string> = { docker: 'Docker', site: '网站', cron: '定时任务' }
+/** One machine's projects by kind, Docker first, kinds with nothing left out. */
+export const kindGroups = (projects: ProjectConfig[]) =>
+  PROJECT_KINDS.map((kind) => ({ kind, projects: projects.filter((p) => p.kind === kind) })).filter(
+    (g) => g.projects.length,
+  )
+const searchable = (p: ProjectConfig) =>
+  `${p.name} ${p.note ?? ''} ${p.kind} ${KIND_LABEL[p.kind]}`.toLowerCase()
 /** First character of the name, whole even when it is an emoji or a rare ideograph. */
 export const tileLetter = (name: string) => (Array.from(name.trim())[0] ?? '').toUpperCase()
 /** A hue that stays with the name, so a project keeps its colour wherever it shows. */
@@ -42,22 +45,24 @@ export const machineProjects = (
   config: Record<string, NodeConfig>,
 ): MachineProjects[] => nodes.map((node) => ({ node, projects: config[String(node.id)]?.projects ?? [] }))
 
-/** Machines that have projects, narrowed to a search term; a machine matched by its own name keeps them all. */
-export function matchProjects(list: MachineProjects[], term: string): MachineProjects[] {
-  const q = term.trim().toLowerCase(),
-    used = list.filter((m) => m.projects.length)
-  if (!q) return used
-  return used
-    .map((m) =>
-      m.node.name.toLowerCase().includes(q)
-        ? m
-        : {
-            ...m,
-            projects: m.projects.filter((p) =>
-              `${p.name} ${urlHost(p.url)} ${p.note ?? ''}`.toLowerCase().includes(q),
-            ),
-          },
-    )
+/** Machines that have projects, narrowed to a kind and a search term; a machine matched by its own name keeps all of that kind. */
+export function matchProjects(
+  list: MachineProjects[],
+  term: string,
+  kind?: ProjectKind | null,
+): MachineProjects[] {
+  const q = term.trim().toLowerCase()
+  return list
+    .map((m) => {
+      const ofKind = kind ? m.projects.filter((p) => p.kind === kind) : m.projects
+      return {
+        ...m,
+        projects:
+          !q || m.node.name.toLowerCase().includes(q)
+            ? ofKind
+            : ofKind.filter((p) => searchable(p).includes(q)),
+      }
+    })
     .filter((m) => m.projects.length)
 }
 
@@ -68,8 +73,10 @@ export function byProject(list: MachineProjects[]): ProjectEntry[] {
       const key = projectKey(p.name)
       let entry = entries.get(key)
       if (!entry)
-        entries.set(key, (entry = { key, name: p.name.trim(), urls: [], notes: [], hosts: [], down: false }))
-      if (p.url && !entry.urls.includes(p.url)) entry.urls.push(p.url)
+        entries.set(
+          key,
+          (entry = { key, name: p.name.trim(), kind: p.kind, notes: [], hosts: [], down: false }),
+        )
       if (p.note && !entry.notes.includes(p.note)) entry.notes.push(p.note)
       if (!entry.hosts.includes(node)) entry.hosts.push(node)
       if (!node.online) entry.down = true
@@ -88,9 +95,9 @@ export function projectSummary(list: MachineProjects[]): ProjectSummary {
   }
 }
 
-/** Project names and link hosts of one node, for the home page search. */
+/** Project names and kinds of one node, for the home page search. */
 export const projectSearchText = (projects: ProjectConfig[] | undefined) =>
   (projects ?? [])
-    .map((p) => `${p.name} ${urlHost(p.url)}`)
+    .map((p) => `${p.name} ${p.kind} ${KIND_LABEL[p.kind]}`)
     .join(' ')
     .toLowerCase()

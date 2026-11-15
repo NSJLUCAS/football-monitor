@@ -663,3 +663,139 @@ test('local portrait drafts survive tab changes and node changes without pretend
   await expect(page.getByText('athlete.png', { exact: true })).toBeVisible()
   await expect(page.getByText('未保存 · 仅本地预览', { exact: true })).toBeVisible()
 })
+
+test('projects page shows what runs where, by machine and by project, on desktop and phones', async ({
+  page,
+  request,
+}) => {
+  const errors: string[] = []
+  page.on('pageerror', (e) => errors.push(e.message))
+  const outside: string[] = []
+  page.on('request', (r) => {
+    if (r.url().includes('example.com')) outside.push(r.url())
+  })
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await page.goto('/')
+  await page.getByRole('navigation', { name: '主导航' }).getByRole('link', { name: '项目' }).click()
+  await expect(page).toHaveURL(/\/projects$/)
+  await expect(page.getByRole('heading', { level: 1, name: '项目' })).toBeVisible()
+  await expect(page.locator('.pj-machine')).toHaveCount(4)
+  await expect(page.locator('.pj-idle')).toContainText('空闲 1 台')
+  await expect(page.locator('.pj-idle')).toContainText('JP-Tokyo')
+  await expect(page.locator('.pj-stats')).toContainText('10 个项目')
+  await expect(page.locator('.pj-down')).toHaveAttribute('data-on', 'false')
+  await page.screenshot({ path: `${shots}/projects-1440.png`, fullPage: true })
+
+  await page.getByRole('button', { name: '按项目', exact: true }).click()
+  await expect(page).toHaveURL(/view=project/)
+  await expect(page.locator('.pj-row')).toHaveCount(10)
+  await expect(page.locator('.pj-row', { hasText: '博客' }).locator('.pj-host')).toHaveCount(2)
+  await page.getByRole('searchbox', { name: '搜索项目' }).fill('gitea')
+  await expect(page.locator('.pj-row')).toHaveCount(1)
+  await expect(page).toHaveURL(/q=gitea/)
+
+  // The machine that runs Alist goes away: its panel and its five projects say so.
+  await request.post('http://127.0.0.1:9911/__test/offline?ids=104')
+  await page.goto('/projects')
+  const down = page.locator('.pj-machine', { hasText: 'SG-01' })
+  await expect(down).toHaveAttribute('data-online', 'false')
+  await expect(down.locator('.pj-score')).toHaveText('OFF')
+  await expect(page.locator('.pj-down')).toHaveAttribute('data-on', 'true')
+  await expect(page.locator('.pj-down b')).toHaveText('5')
+  await request.post('http://127.0.0.1:9911/__test/offline')
+
+  for (const view of ['', '?view=project'])
+    for (const width of [1440, 768, 390, 320]) {
+      await page.setViewportSize({ width, height: 900 })
+      await page.goto(`/projects${view}`)
+      await expect(page.locator(view ? '.pj-row' : '.pj-machine').first()).toBeVisible()
+      expect(await noHorizontalOverflow(page), `/projects${view} at ${width}px`).toBe(true)
+    }
+  // The fifth navigation entry must not push the header sideways where it is tightest: the home page, signed in.
+  for (const width of [768, 901, 1000]) {
+    await page.setViewportSize({ width, height: 900 })
+    await page.goto('/')
+    await expect(page.locator('.main-nav a[href="/projects"]')).toBeVisible()
+    expect(await noHorizontalOverflow(page), `/ at ${width}px`).toBe(true)
+  }
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/')
+  await page.locator('header .projects-link').click()
+  await expect(page).toHaveURL(/\/projects$/)
+  await expect(page.locator('.pj-machine')).toHaveCount(4)
+  await page.screenshot({ path: `${shots}/projects-390.png`, fullPage: true })
+
+  // The same projects on the node's own page, and a node found from the home page by what it runs.
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await page.goto('/node/104')
+  await expect(page.locator('#projects .pj-item')).toHaveCount(5)
+  await page.goto('/?q=gitea')
+  await expect(page.locator('.player-card')).toHaveCount(1)
+  expect(outside, 'nothing is fetched from a project link').toEqual([])
+  expect(errors).toEqual([])
+})
+
+test('a project added in settings shows up on the projects page and long names stay inside a phone', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await page.goto('/settings?node=103')
+  await page.getByRole('button', { name: '节点设置' }).click()
+  await page.locator('#node-select').selectOption('103')
+  await expect(page.locator('.projects-editor')).toContainText('对所有访客公开')
+  await page.getByRole('button', { name: '添加项目' }).click()
+  // A row left without a name is refused, and stays in the draft.
+  await page.getByRole('button', { name: '保存到 Hub' }).click()
+  await expect(page.locator('.save-feedback.failure')).toContainText('项目名称需为 1–40 字')
+  await expect(page.locator('.project-row')).toHaveCount(1)
+  await page
+    .getByRole('textbox', { name: '项目名称' })
+    .fill('一个名字特别特别长的项目用来检查窄屏时会不会把页面撑宽')
+  await page
+    .getByRole('textbox', { name: '项目网址' })
+    .fill('https://a-very-long-subdomain-name-for-overflow-check.example.com/path')
+  await saveSettings(page)
+  await page.reload()
+  await page.getByRole('button', { name: '节点设置' }).click()
+  await page.locator('#node-select').selectOption('103')
+  await expect(page.getByRole('textbox', { name: '项目网址' })).toHaveValue(
+    'https://a-very-long-subdomain-name-for-overflow-check.example.com/path',
+  )
+  // Putting the node's look back to defaults is about the card, not about what runs on the machine.
+  await page.getByRole('button', { name: '恢复此节点的全部默认设置' }).click()
+  await expect(page.getByRole('textbox', { name: '项目名称' })).toHaveCount(1)
+  await saveSettings(page)
+  await page.goto('/projects')
+  await expect(page.locator('.pj-machine')).toHaveCount(5)
+  await expect(page.locator('.pj-idle')).toHaveCount(0)
+  for (const view of ['', '?view=project']) {
+    await page.setViewportSize({ width: 320, height: 844 })
+    await page.goto(`/projects${view}`)
+    await expect(page.getByText('一个名字特别特别长的项目').first()).toBeVisible()
+    expect(await noHorizontalOverflow(page), `/projects${view} at 320px`).toBe(true)
+  }
+  const tile = page.locator('.pj-machine', { hasText: 'JP-Tokyo' }).locator('.pj-text b')
+  await page.goto('/projects')
+  expect(await tile.evaluate((b) => b.scrollWidth > b.clientWidth)).toBe(true)
+})
+
+for (const appearance of ['dark', 'light'] as const)
+  test(`projects page has no serious accessibility violations in ${appearance} appearance`, async ({
+    page,
+    request,
+  }) => {
+    await page.addInitScript(
+      (value) => localStorage.setItem('football-monitor:appearance', value),
+      appearance,
+    )
+    await request.post('http://127.0.0.1:9911/__test/offline?ids=104')
+    for (const path of ['/projects', '/projects?view=project']) {
+      await page.goto(path)
+      await expect(page.locator('.pj-stats')).toBeVisible()
+      const report = await new AxeBuilder({ page }).analyze()
+      expect(
+        report.violations.filter((v) => ['serious', 'critical'].includes(v.impact || '')),
+        `${path} in ${appearance}`,
+      ).toEqual([])
+    }
+  })

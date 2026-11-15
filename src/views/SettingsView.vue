@@ -183,8 +183,10 @@ function defaultTemplateChange(value: TemplateId | undefined) {
 function resetNode() {
   portraitEditor.value?.reset()
   editVersion.value++
-  nodeChanges.value[String(selected.value)] = null
-  message.value = '当前节点已在草稿中恢复默认，请保存到 Hub。'
+  // Defaults are about how the node looks; what the owner listed as running on it is kept.
+  const projects = current.value.projects
+  nodeChanges.value[String(selected.value)] = projects?.length ? { projects } : null
+  message.value = '当前节点已在草稿中恢复默认（登记的项目保留），请保存到 Hub。'
 }
 function resetGlobal() {
   editVersion.value++

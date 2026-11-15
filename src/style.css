@@ -223,7 +223,7 @@ svg {
   display: none;
 }
 /* The ops wall is for large screens; below desktop width its entry would push the header sideways. */
-@media (max-width: 899px) {
+@media (max-width: 1023px) {
   .main-nav .ops-link {
     display: none;
   }
@@ -1702,6 +1702,13 @@ svg {
   }
   .overview[data-boards='2'] .summary-grid {
     grid-column: 1 / -1;
+  }
+  /* A fifth navigation entry (projects) has to fit beside the search and the actions. */
+  .main-nav a {
+    padding: 0 10px;
+  }
+  .header-search {
+    min-width: 110px;
   }
   /* Below 1200px the pill shows only its dot; the state text stays available to assistive technology. */
   .connection-pill > .connection-text {

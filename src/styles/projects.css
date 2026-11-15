@@ -99,16 +99,16 @@
 }
 .pj-head em {
   flex-shrink: 0;
-  padding: 1px 7px;
+  padding: 0 6px;
+  border: 1px solid color-mix(in srgb, var(--success) 45%, transparent);
   border-radius: 4px;
-  background: color-mix(in srgb, var(--success) 14%, transparent);
   color: var(--success);
   font-size: 11px;
   font-style: normal;
   font-weight: 700;
 }
 .pj-head em[data-online='false'] {
-  background: color-mix(in srgb, var(--danger) 16%, transparent);
+  border-color: color-mix(in srgb, var(--danger) 55%, transparent);
   color: var(--danger);
 }
 .pj-score {
@@ -139,9 +139,13 @@
 .pj-list li {
   min-width: 0;
 }
-/* What runs on a machine that is away is not reachable either. */
-.pj-machine[data-online='false'] .pj-list {
-  opacity: 0.55;
+/* What runs on a machine that is away is not reachable either: its tiles lose their colour, the text stays readable. */
+.pj-machine[data-online='false'] .pj-tile {
+  background: var(--surface-raised);
+  color: var(--muted);
+}
+.pj-machine[data-online='false'] .pj-text b {
+  color: var(--muted);
 }
 .pj-idle {
   display: flex;

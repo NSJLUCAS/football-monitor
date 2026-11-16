@@ -249,11 +249,16 @@ test('search, groups and detail history work', async ({ page }) => {
   await expect(page.locator('.player-card')).toHaveCount(1)
   await page.getByRole('link', { name: /^查看 JP-Tokyo 详情，/ }).click()
   await expect(page.getByRole('heading', { level: 1, name: 'JP-Tokyo' })).toBeVisible()
-  await expect(page.locator('.chart-svg')).toHaveCount(5)
+  // Four resource charts on the first tab; probe latency on the second.
+  await expect(page.locator('.chart-svg')).toHaveCount(4)
+  await expect(page.locator('#history .chart-band')).not.toHaveCount(0)
+  await page.getByRole('tab', { name: '网络延迟' }).click()
+  await expect(page.locator('.chart-svg')).toHaveCount(1)
+  await page.getByRole('tab', { name: '资源' }).click()
   await page.getByRole('navigation', { name: '详情分区' }).getByRole('link', { name: '评分明细' }).click()
   await expect(page.locator('#score')).toBeInViewport()
   await page.getByRole('button', { name: '7 天', exact: true }).click()
-  await expect(page.locator('.charts-grid')).toHaveAttribute('aria-busy', 'false')
+  await expect(page.locator('.history-charts')).toHaveAttribute('aria-busy', 'false')
   // Full-page captures draw fixed/sticky elements at the scroll offset, so capture from the top.
   await page.evaluate(() => window.scrollTo(0, 0))
   await page.screenshot({ path: `${shots}/node-detail-1440.png`, fullPage: true })

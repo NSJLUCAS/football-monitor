@@ -197,6 +197,11 @@ export const initialConfig = {
     ),
   }),
 }
+// A repeatable 0–1 scatter, so the mock's peaks look like busy minutes rather than a wave.
+const jitter = (n: number) => {
+  const x = Math.sin(n * 12.9898) * 43758.5453
+  return x - Math.floor(x)
+}
 export function history(id: number, hours = 6, series = '') {
   const start = Math.floor(Date.now() / 60000) * 60 - hours * 3600,
     step = Math.max(60, Math.ceil((hours * 3600) / 120 / 60) * 60)
@@ -209,6 +214,9 @@ export function history(id: number, hours = 6, series = '') {
     disk_used: base.disk_total * 0.28,
     net_rx: base.metrics.net_rx * (0.7 + Math.sin(i / 8) * 0.3),
     net_tx: base.metrics.net_tx * (0.7 + Math.cos(i / 5) * 0.3),
+    // Hub's busiest minute in the bucket, so the rate chart's peak band has something to show.
+    net_rx_max: base.metrics.net_rx * (0.7 + Math.sin(i / 8) * 0.3) * (1.3 + jitter(i * 2 + id) * 1.4),
+    net_tx_max: base.metrics.net_tx * (0.7 + Math.cos(i / 5) * 0.3) * (1.3 + jitter(i * 2 + id + 1) * 1.4),
     minutes: step / 60,
   }))
   const ping = [201, 202, 203].flatMap((task_id, t) =>

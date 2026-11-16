@@ -72,6 +72,9 @@ export interface MetricPoint {
   disk_used: number | null
   net_rx: number | null
   net_tx: number | null
+  /** The busiest minute in the bucket, from a Hub that records it. */
+  net_rx_max?: number
+  net_tx_max?: number
   minutes?: number
 }
 export interface PingPoint {

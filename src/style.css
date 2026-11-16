@@ -1389,25 +1389,182 @@ svg {
   border-color: var(--primary);
   background: var(--primary);
 }
-.charts-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
+/* History: a tab per kind of chart, then full-width charts stacked in one panel. */
+.history-tabs {
+  display: inline-flex;
+  gap: 2px;
+  margin-bottom: 12px;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--subtle);
+}
+.history-tabs button {
+  min-height: 30px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.history-tabs button[aria-selected='true'] {
+  background: var(--foreground);
+  color: var(--background);
+}
+.history-charts {
+  padding: 6px 20px;
 }
 .chart-panel {
   padding: 17px 18px 10px;
   min-width: 0;
 }
-.chart-panel h3 {
-  font-size: 12px;
-  font-weight: 600;
-  margin-bottom: 14px;
+.chart-panel.stacked {
+  padding: 16px 0 6px;
+  border: none;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
 }
-.chart-panel.wide {
-  grid-column: 1/-1;
+.chart-panel.stacked + .chart-panel.stacked {
+  border-top: 1px solid var(--border);
+}
+.chart-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin-bottom: 10px;
+}
+.chart-panel h3 {
+  font-size: 13px;
+  font-weight: 600;
+}
+.chart-head .chart-legend {
+  margin: 0;
+}
+.chart-legend .chart-key i {
+  width: 16px;
+  height: 0;
+  border-top: 2px solid var(--muted);
+  border-radius: 0;
+}
+.chart-legend .chart-key i.dashed {
+  border-top-style: dashed;
+}
+.chart-key:first-of-type {
+  padding-left: 12px;
+  border-left: 1px solid var(--border);
+}
+.chart-note {
+  color: var(--muted);
+  font-size: 11px;
 }
 .chart-plot {
   position: relative;
+}
+.chart-tip-mark {
+  padding-left: 8px;
+  color: var(--danger);
+  font-style: normal;
+  font-weight: 600;
+}
+/* Latency: a card per probe that shows or hides its line, and the 削峰 switch. */
+.probe-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px 16px;
+  margin-bottom: 12px;
+}
+.probe-chips {
+  display: flex;
+  flex: 1 1 260px;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+@media (max-width: 640px) {
+  .probe-chip {
+    flex: 1 1 132px;
+  }
+}
+.probe-chip {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  column-gap: 7px;
+  row-gap: 2px;
+  min-width: 132px;
+  padding: 7px 11px 7px 9px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--foreground);
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    opacity 0.15s,
+    border-color 0.15s;
+}
+.probe-chip:hover {
+  border-color: var(--muted);
+}
+.probe-chip[aria-pressed='false'] {
+  opacity: 0.45;
+}
+.probe-chip[aria-pressed='false'] i {
+  background: none !important;
+  box-shadow: inset 0 0 0 1.5px var(--muted);
+}
+.probe-chip i {
+  grid-row: span 2;
+  align-self: stretch;
+  width: 3px;
+  border-radius: 2px;
+}
+.probe-name {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.probe-stats {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.probe-stats b {
+  color: var(--muted);
+  font-weight: 500;
+}
+.probe-stats em {
+  padding: 0 5px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
+  color: var(--danger);
+  font-style: normal;
+  font-weight: 600;
+}
+.probe-despike {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+}
+.probe-despike input {
+  accent-color: var(--foreground);
 }
 .chart-tip {
   position: absolute;
@@ -1763,9 +1920,6 @@ svg {
   .fact-grid,
   .score-groups {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .charts-grid {
-    grid-template-columns: 1fr;
   }
 }
 /* Below tablet width the brand, three nav links and the actions fill the row; the search takes its own. */

@@ -6,9 +6,10 @@ import NodeDetailView from '../src/views/NodeDetailView.vue'
 import ScoreGauge from '../src/components/ScoreGauge.vue'
 import HistoryChart from '../src/components/HistoryChart.vue'
 import { normalizeNodes } from '../src/domain/normalize'
-import { bytes, cycle, duration, expiry, money, trafficUsed } from '../src/domain/format'
+import { bytes, cycle, duration, expiry, money, rate, trafficUsed } from '../src/domain/format'
 import type { HistoryResponse, MonitorNode } from '../src/domain/types'
 import { useMonitorStore } from '../src/stores/monitor'
+import { carriers } from '../src/domain/carriers'
 
 const GB = 1024 ** 3
 const now = Math.floor(Date.now() / 1000)
@@ -172,21 +173,13 @@ describe('node detail page', () => {
     expect(document.title).toBe('东京 Prime · Football Monitor')
   })
 
-  it('draws the disk history in a colour readable on light and dark panels', async () => {
+  it('draws CPU, memory and disk in the page’s own ink, readable on light and dark panels alike', async () => {
     const { wrapper } = await mountDetail()
-    const disk = wrapper.findAllComponents(HistoryChart).find((c) => c.props('title') === '硬盘使用率')!
-    const color = (disk.props('series') as { color: string }[])[0]!.color
-    const luminance = (hex: string) => {
-      const [r, g, b] = [1, 3, 5].map((i) => {
-        const c = parseInt(hex.slice(i, i + 2), 16) / 255
-        return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
-      })
-      return 0.2126 * r! + 0.7152 * g! + 0.0722 * b!
-    }
-    for (const panel of ['#ffffff', '#1b1e26']) {
-      const [a, b] = [luminance(color), luminance(panel)].sort((x, y) => y - x)
-      expect((a! + 0.05) / (b! + 0.05), panel).toBeGreaterThanOrEqual(3)
-    }
+    const colors = wrapper
+      .findAllComponents(HistoryChart)
+      .filter((c) => !String(c.props('title')).startsWith('网络'))
+      .map((c) => (c.props('series') as { color: string }[])[0]!.color)
+    expect(colors).toEqual(['var(--foreground)', 'var(--foreground)', 'var(--foreground)'])
   })
 
   it('hides the configure action from visitors', async () => {
@@ -424,9 +417,82 @@ describe('node detail page', () => {
     expect(wrapper.find('.detail-status').text()).toBe('离线')
   })
 
-  it('keeps the five history charts', async () => {
+  it('stacks four wide resource charts, with latency on its own tab', async () => {
     const { wrapper } = await mountDetail()
-    const titles = wrapper.findAll('#history .chart-panel h3').map((h) => h.text())
-    expect(titles).toEqual(['CPU 使用率', '内存使用率', '网络速率', '硬盘使用率', 'TCP 延迟历史'])
+    const titles = () => wrapper.findAll('#history .chart-panel h3').map((h) => h.text())
+    expect(titles()).toEqual(['CPU', `内存 · ${bytes(8 * GB, 2)}`, '网络速率', `硬盘 · ${bytes(80 * GB)}`])
+    const tabs = wrapper.findAll('#history [role="tab"]')
+    expect(tabs.map((t) => t.text())).toEqual(['资源', '网络延迟'])
+    expect(tabs[0]!.attributes('aria-selected')).toBe('true')
+    await tabs[1]!.trigger('click')
+    expect(titles()).toEqual(['TCP 延迟历史'])
+    expect(wrapper.findAll('#history [role="tab"]')[1]!.attributes('aria-selected')).toBe('true')
+  })
+
+  it('shows memory and disk in GB against their totals, and rates on a log axis', async () => {
+    const { wrapper } = await mountDetail()
+    const charts = wrapper.findAll('#history .chart-panel')
+    const yLabels = (i: number) => charts[i]!.findAll('.chart-axis-y').map((t) => t.text())
+    expect(yLabels(0)).toEqual(['0%', '15%', '30%'])
+    expect(yLabels(1).at(-1)).toBe(bytes(8 * GB, 2))
+    expect(yLabels(3).at(-1)).toBe(bytes(80 * GB))
+    expect(charts[2]!.find('.chart-note').text()).toBe('对数刻度')
+    // Without peaks from Hub there is nothing to shade and no peak to name.
+    expect(charts[2]!.find('.chart-band').exists()).toBe(false)
+  })
+
+  it('cards each probe on the latency tab, marks loss, and shades one probe’s range', async () => {
+    const { wrapper } = await mountDetail((store) => {
+      vi.spyOn(store.history, 'get').mockResolvedValue({
+        ...history(),
+        ping: [
+          { task_id: 11, ts: now - 180, latency: 38, band: [30, 50] },
+          { task_id: 11, ts: now - 120, latency: 90, band: [35, 120], loss: 2 },
+          { task_id: 11, ts: now - 60, latency: 42, band: [33, 52] },
+          { task_id: 12, ts: now - 180, latency: 150 },
+          { task_id: 12, ts: now - 120, latency: null, loss: 100 },
+          { task_id: 12, ts: now - 60, latency: 160 },
+        ],
+        probes: { '11': '上海电信 TCP', '12': '广东移动' },
+        loss: { '11': 1.5 },
+      })
+    })
+    await wrapper.findAll('#history [role="tab"]')[1]!.trigger('click')
+    const chips = () => wrapper.findAll('#history .probe-chip')
+    const yLabels = () => wrapper.findAll('#history .chart-axis-y').map((t) => t.text())
+    expect(chips().map((c) => c.text())).toEqual([
+      '上海电信 TCP平均 56.7 ms丢 1.5%',
+      '广东移动平均 155 ms丢 33.3%',
+    ])
+    expect(chips().map((c) => c.attributes('aria-pressed'))).toEqual(['true', 'true'])
+    // The axis hugs the readings instead of starting at zero far below them.
+    expect(yLabels()).toEqual(['0 ms', '50 ms', '100 ms', '150 ms', '200 ms'])
+    expect(wrapper.findAll('#history .chart-mark')).toHaveLength(2)
+    // Two lines share the plot, so neither one's range is shaded.
+    expect(wrapper.find('#history .chart-band').exists()).toBe(false)
+    await chips()[1]!.trigger('click')
+    expect(chips()[1]!.attributes('aria-pressed')).toBe('false')
+    expect(wrapper.find('#history .chart-band').attributes('fill')).toBe(carriers[0]!.color)
+    expect(yLabels()).toEqual(['20 ms', '40 ms', '60 ms', '80 ms', '100 ms', '120 ms'])
+    // The last line shown stays shown.
+    await chips()[0]!.trigger('click')
+    expect(chips()[0]!.attributes('aria-pressed')).toBe('true')
+    // 削峰 takes each reading's median with its neighbours, flattening the 90 ms spike.
+    await wrapper.find('#history .probe-despike input').setValue(true)
+    expect(yLabels()).toEqual(['30 ms', '35 ms', '40 ms', '45 ms', '50 ms', '55 ms'])
+  })
+
+  it('names the window peak and shades from mean to peak when Hub sends peaks', async () => {
+    const { wrapper } = await mountDetail((store) => {
+      const peaked = history()
+      peaked.metrics = peaked.metrics.map((m) => ({ ...m, net_rx_max: 3 * 1024 ** 2, net_tx_max: 8 * 1024 }))
+      vi.spyOn(store.history, 'get').mockResolvedValue(peaked)
+    })
+    const net = wrapper.findAll('#history .chart-panel')[2]!
+    expect(net.find('h3').text()).toBe(`网络速率 · 窗口内峰值 ↓ ${rate(3 * 1024 ** 2)} · ↑ ${rate(8 * 1024)}`)
+    // One shade from the lower mean to the higher peak, not two overlapping ones.
+    expect(net.findAll('.chart-band')).toHaveLength(1)
+    expect(net.findAll('path[stroke-dasharray]')).toHaveLength(2)
+    expect(net.find('.chart-legend').text()).toContain('峰值（一分钟内最高）')
   })
 })

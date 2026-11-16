@@ -120,6 +120,8 @@ export function normalizeHistory(value: unknown): HistoryResponse {
           disk_used: nullable(m.disk_used),
           net_rx: nullable(m.net_rx),
           net_tx: nullable(m.net_tx),
+          ...(nonnegative(m.net_rx_max) ? { net_rx_max: m.net_rx_max } : {}),
+          ...(nonnegative(m.net_tx_max) ? { net_tx_max: m.net_tx_max } : {}),
           ...(nonnegative(m.minutes) ? { minutes: m.minutes } : {}),
         },
       ]

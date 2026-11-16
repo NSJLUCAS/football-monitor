@@ -15,11 +15,20 @@ import {
   windows,
   windowLabel,
 } from '../domain/format'
-import type { HistoryResponse } from '../domain/types'
+import type { HistoryResponse, MetricPoint } from '../domain/types'
 import { emptyScore, nextTier, type Tier } from '../domain/score'
 import { carriers, lossColor, lossGrade, resolveCarrier, taskLoss } from '../domain/carriers'
 import { nodeTemplate, skinOf } from '../domain/skins'
-import type { ChartSeries } from '../domain/chart'
+import {
+  cpuTop,
+  despike,
+  latencyAxis,
+  rateAxis,
+  windowPeak,
+  type ChartBand,
+  type ChartPoint,
+  type ChartSeries,
+} from '../domain/chart'
 import { ApiError } from '../services/api'
 import { Button } from '../components/ui/button'
 import PageHeading from '../components/PageHeading.vue'
@@ -85,38 +94,123 @@ onBeforeUnmount(() => {
   generation++
   clearInterval(timer)
 })
-const resource = (key: 'cpu' | 'mem_used' | 'disk_used', name: string, color: string): ChartSeries[] => [
-  {
-    name,
-    color,
-    points: (data.value?.metrics || []).map((p) => ({
-      ts: p.ts,
-      value:
-        key === 'cpu'
-          ? p.cpu
-          : percent(p[key], key === 'mem_used' ? node.value?.mem_total : node.value?.disk_total),
-    })),
-  },
+// History: resources as four full-width charts on one tab, probe latency on the other.
+const historyTab = ref<'resources' | 'latency'>('resources')
+const metrics = computed(() => data.value?.metrics || [])
+const line = (pick: (p: MetricPoint) => number | null | undefined) =>
+  metrics.value.map((p) => ({ ts: p.ts, value: pick(p) ?? null }))
+// One shaded line in the page's own ink, as for every resource but the rates.
+const shaded = (name: string, pick: (p: MetricPoint) => number | null | undefined): ChartSeries[] => [
+  { name, color: 'var(--foreground)', fill: true, points: line(pick) },
 ]
-const network = computed<ChartSeries[]>(() =>
-  ['net_rx', 'net_tx'].map((key, i) => ({
-    name: i ? '上传' : '下载',
-    color: i ? '#60a5fa' : '#4ade80',
-    points: (data.value?.metrics || []).map((p) => ({
-      ts: p.ts,
-      value: p[key as 'net_rx' | 'net_tx'] === null ? null : p[key as 'net_rx' | 'net_tx']! / 1024 ** 2,
-    })),
-  })),
+const cpu = computed(() => {
+  const top = cpuTop(Math.max(0, ...metrics.value.map((p) => p.cpu ?? 0)))
+  // Steps of 15% while that leaves few lines, quarters on a busy machine's taller axis.
+  const ticks = top / 15 <= 4 ? Array.from({ length: top / 15 + 1 }, (_, i) => i * 15) : [0, 25, 50, 75, 100]
+  return { series: shaded('CPU', (p) => p.cpu), ticks }
+})
+// Memory and disk in bytes against their totals; a total Hub does not report falls back to the busiest sample.
+const capacity = (key: 'mem_used' | 'disk_used', total: number | undefined, parts: number) => {
+  const top = total || Math.max(1, ...metrics.value.map((p) => p[key] ?? 0))
+  return {
+    top,
+    series: shaded(key === 'mem_used' ? '内存' : '硬盘', (p) => p[key]),
+    ticks: Array.from({ length: parts + 1 }, (_, i) => (top * i) / parts),
+  }
+}
+const memory = computed(() => capacity('mem_used', node.value?.mem_total, 4))
+const disk = computed(() => capacity('disk_used', node.value?.disk_total, 2))
+// Rates: the mean each way, and from a Hub that records it the busiest minute, dashed, with the gap shaded.
+const peak = computed(() => windowPeak(metrics.value))
+const network = computed(() => {
+  const rx = line((p) => p.net_rx),
+    tx = line((p) => p.net_tx)
+  const series: ChartSeries[] = [
+    { name: '下行', color: '#3b82f6', points: rx },
+    { name: '上行', color: '#f59e0b', points: tx },
+  ]
+  const bands: ChartBand[] = []
+  if (peak.value) {
+    const rxTop = line((p) => p.net_rx_max ?? p.net_rx),
+      txTop = line((p) => p.net_tx_max ?? p.net_tx)
+    series.push(
+      { name: '下行峰值', color: '#3b82f6', dashed: true, legend: false, points: rxTop },
+      { name: '上行峰值', color: '#f59e0b', dashed: true, legend: false, points: txTop },
+    )
+    // One shade from the lower of the two means to the higher of the two peaks: two overlapping ones would
+    // darken wherever they cross.
+    const pair = (a: ChartPoint[], b: ChartPoint[], pick: (x: number, y: number) => number) =>
+      a.map((p, i) => {
+        const other = b[i]?.value ?? null
+        return { ts: p.ts, value: p.value === null || other === null ? null : pick(p.value, other) }
+      })
+    bands.push({ color: '#94a3b8', low: pair(rx, tx, Math.min), high: pair(rxTop, txTop, Math.max) })
+  }
+  const axis = rateAxis(series.flatMap((s) => s.points.map((p) => p.value ?? 0)))
+  return { series, bands, ticks: axis.ticks }
+})
+const rateText = (v: number) => `${bytes(v)}/s`
+const networkTitle = computed(() =>
+  peak.value
+    ? `网络速率 · 窗口内峰值 ↓ ${rateText(peak.value.rx)} · ↑ ${rateText(peak.value.tx)}`
+    : '网络速率',
 )
-const pingSeries = computed<ChartSeries[]>(() => {
-  const ids = [...new Set((data.value?.ping || []).map((p) => p.task_id))]
-  return ids.map((id, i) => ({
-    name: data.value?.probes[id] || `任务 #${id}`,
-    color: carriers[i % 3]!.color,
-    points: (data.value?.ping || [])
-      .filter((p) => p.task_id === id)
-      .map((p) => ({ ts: p.ts, value: p.latency })),
+// Latency: one card per probe, which shows or hides its line; one probe alone shows its range behind it.
+const hiddenProbes = ref<number[]>([]),
+  despiked = ref(false)
+const ms = (v: number) => `${Number(v.toFixed(1))} ms`
+const probes = computed(() => {
+  const ping = data.value?.ping || []
+  return [...new Set(ping.map((p) => p.task_id))].map((id, i) => {
+    const own = ping.filter((p) => p.task_id === id)
+    const ok = own.flatMap((p) => (p.latency === null ? [] : [p.latency]))
+    return {
+      id,
+      name: data.value?.probes[id] || `任务 #${id}`,
+      color: carriers[i % 3]!.color,
+      mean: ok.length ? ok.reduce((a, b) => a + b, 0) / ok.length : null,
+      loss: taskLoss(data.value, id) ?? 0,
+      points: own.map((p) => ({
+        ts: p.ts,
+        value: p.latency,
+        ...(p.loss ? { mark: `丢包 ${p.loss.toFixed(1)}%` } : {}),
+      })),
+      low: own.map((p) => ({ ts: p.ts, value: p.band?.[0] ?? null })),
+      high: own.map((p) => ({ ts: p.ts, value: p.band?.[1] ?? null })),
+      banded: own.some((p) => p.band),
+    }
+  })
+})
+// Should new data leave nothing shown, every line comes back.
+const shownProbes = computed(() => {
+  const shown = probes.value.filter((p) => !hiddenProbes.value.includes(p.id))
+  return shown.length ? shown : probes.value
+})
+const probeShown = (id: number) => shownProbes.value.some((p) => p.id === id)
+watch(
+  () => node.value?.id,
+  () => (hiddenProbes.value = []),
+)
+function toggleProbe(id: number) {
+  if (hiddenProbes.value.includes(id)) hiddenProbes.value = hiddenProbes.value.filter((h) => h !== id)
+  // The last line shown stays, so the chart never goes blank.
+  else if (shownProbes.value.length > 1) hiddenProbes.value = [...hiddenProbes.value, id]
+}
+const latency = computed(() => {
+  const smooth = (points: ChartPoint[]) => (despiked.value ? despike(points) : points)
+  const series: ChartSeries[] = shownProbes.value.map((p) => ({
+    name: p.name,
+    color: p.color,
+    points: smooth(p.points),
   }))
+  const only = shownProbes.value.length === 1 ? shownProbes.value[0]! : null
+  const bands: ChartBand[] = only?.banded
+    ? [{ color: only.color, low: smooth(only.low), high: smooth(only.high) }]
+    : []
+  const values = [...series, ...bands.flatMap((b) => [{ points: b.low }, { points: b.high }])].flatMap((s) =>
+    s.points.flatMap((p) => (p.value === null ? [] : [p.value])),
+  )
+  return { series, bands, ticks: latencyAxis(values).ticks }
 })
 const crumbs = computed(() => [
   { label: 'Football Monitor', to: '/' },
@@ -407,33 +501,111 @@ const pct = (loss: number) => `${Number(loss.toFixed(1))}%`
           <div v-if="error" class="inline-notice" role="alert">
             {{ error }}<Button variant="ghost" size="sm" @click="load(true)">重新读取</Button>
           </div>
-          <div class="charts-grid" :aria-busy="busy">
+          <div class="history-tabs" role="tablist" aria-label="历史图表">
+            <button
+              role="tab"
+              type="button"
+              :aria-selected="historyTab === 'resources'"
+              @click="historyTab = 'resources'"
+            >
+              资源</button
+            ><button
+              role="tab"
+              type="button"
+              :aria-selected="historyTab === 'latency'"
+              @click="historyTab = 'latency'"
+            >
+              网络延迟
+            </button>
+          </div>
+          <div class="history-charts panel" :aria-busy="busy" role="tabpanel">
+            <template v-if="historyTab === 'resources'">
+              <HistoryChart
+                class="stacked"
+                title="CPU"
+                :series="cpu.series"
+                unit="%"
+                :ticks="cpu.ticks"
+                :height="180"
+                legend="none"
+                :step="data?.step"
+              />
+              <HistoryChart
+                class="stacked"
+                :title="`内存 · ${bytes(memory.top, 2)}`"
+                :series="memory.series"
+                unit=""
+                :ticks="memory.ticks"
+                :format="(v: number) => bytes(v, 2)"
+                :height="180"
+                legend="none"
+                :step="data?.step"
+              />
+              <HistoryChart
+                class="stacked"
+                :title="networkTitle"
+                :series="network.series"
+                :bands="network.bands"
+                unit=""
+                scale="log"
+                :ticks="network.ticks"
+                :format="rateText"
+                :height="200"
+                legend="top"
+                note="对数刻度"
+                :step="data?.step"
+              >
+                <template v-if="peak" #legend>
+                  <span class="chart-key"><i class="solid" />平均</span>
+                  <span class="chart-key"><i class="dashed" />峰值（一分钟内最高）</span>
+                </template>
+              </HistoryChart>
+              <HistoryChart
+                class="stacked"
+                :title="`硬盘 · ${bytes(disk.top)}`"
+                :series="disk.series"
+                unit=""
+                :ticks="disk.ticks"
+                :format="(v: number) => bytes(v)"
+                :height="120"
+                legend="none"
+                :step="data?.step"
+              />
+            </template>
             <HistoryChart
-              title="CPU 使用率"
-              :series="resource('cpu', 'CPU', '#ff7a1a')"
-              unit="%"
-              :maximum="100"
-              :step="data?.step"
-            /><HistoryChart
-              title="内存使用率"
-              :series="resource('mem_used', '内存', '#a78bfa')"
-              unit="%"
-              :maximum="100"
-              :step="data?.step"
-            /><HistoryChart title="网络速率" :series="network" unit=" MB/s" :step="data?.step" /><HistoryChart
-              title="硬盘使用率"
-              :series="resource('disk_used', '硬盘', '#64748b')"
-              unit="%"
-              :maximum="100"
-              :step="data?.step"
-            /><HistoryChart
-              class="wide"
+              v-else
+              class="stacked"
               title="TCP 延迟历史"
-              :height="200"
-              :series="pingSeries"
+              :height="300"
+              :series="latency.series"
+              :bands="latency.bands"
+              :ticks="latency.ticks"
               unit=" ms"
+              legend="none"
               :step="data?.step"
-            />
+            >
+              <template v-if="probes.length" #toolbar>
+                <div class="probe-bar">
+                  <div class="probe-chips" aria-label="显示或隐藏线路">
+                    <button
+                      v-for="p in probes"
+                      :key="p.id"
+                      type="button"
+                      class="probe-chip"
+                      :aria-pressed="probeShown(p.id)"
+                      @click="toggleProbe(p.id)"
+                    >
+                      <i :style="{ background: p.color }" /><span class="probe-name">{{ p.name }}</span
+                      ><span class="probe-stats"
+                        ><b>平均 {{ p.mean === null ? '—' : ms(p.mean) }}</b
+                        ><em v-if="p.loss > 0">丢 {{ Number(p.loss.toFixed(1)) }}%</em></span
+                      >
+                    </button>
+                  </div>
+                  <label class="probe-despike"><input v-model="despiked" type="checkbox" />削峰</label>
+                </div>
+              </template>
+            </HistoryChart>
           </div>
         </section>
         <section id="system" class="detail-section detail-system panel" aria-labelledby="system-title">

@@ -62,4 +62,21 @@ describe('monitor store start-up', () => {
     expect(store.error).toBe('登录已失效或公开页面已关闭，请重新登录后重试')
     store.stop()
   })
+
+  it('shows sample projects on the theme gallery demo, whose settings are empty', async () => {
+    vi.stubGlobal('location', {
+      hostname: 'football-monitor.monitor-themes.pages.dev',
+      host: 'football-monitor.monitor-themes.pages.dev',
+      protocol: 'https:',
+    })
+    const { reply } = hub()
+    const store = useMonitorStore()
+    void store.bootstrap()
+    reply('/api/nodes', json({ nodes: [{ id: 1, name: '东京', online: true }] }))
+    reply('/api/me', json({ authed: false, public_page: true }))
+    reply('/api/themes/football-monitor/config', json({}))
+    await flushPromises()
+    expect(store.config.nodes['1']?.projects?.length).toBeGreaterThan(0)
+    store.stop()
+  })
 })

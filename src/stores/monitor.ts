@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
 import { parseConfig } from '../domain/config'
+import { withPreviewProjects } from '../domain/previewProjects'
 import { normalizeMe, record } from '../domain/normalize'
 import { networkScore, nextTier, type NodeScore, type Tier } from '../domain/score'
 import type { ConfigPatch, HistoryResponse, Me, MonitorNode } from '../domain/types'
@@ -141,7 +142,9 @@ export const useMonitorStore = defineStore('monitor', () => {
       loading.value = false
       return
     }
-    config.value = parseConfig(settings.status === 'fulfilled' ? record(settings.value) : {})
+    config.value = withPreviewProjects(
+      parseConfig(settings.status === 'fulfilled' ? record(settings.value) : {}),
+    )
     const scheme = location.protocol === 'https:' ? 'wss' : 'ws'
     realtime = new RealtimeController({
       url: `${scheme}://${location.host}/api/ws${typeof DecompressionStream === 'function' ? '?gzip' : ''}`,

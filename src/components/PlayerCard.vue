@@ -100,7 +100,17 @@ const style = computed(() => {
     :style="style"
     :aria-label="`${node.name} ${node.online ? '在线' : '离线'} 综合 ${score.overall ?? '无数据'}`"
   >
-    <img class="pc-face" :src="skin.image" alt="" loading="lazy" decoding="async" draggable="false" />
+    <!-- A grid card is about 180px wide and may take the 400px copy; the detail page's large card never does. -->
+    <img
+      class="pc-face"
+      :src="skin.image"
+      :srcset="size === 'sm' ? `${skin.small} 400w, ${skin.image} 640w` : undefined"
+      :sizes="size === 'sm' ? '200px' : undefined"
+      alt=""
+      loading="lazy"
+      decoding="async"
+      draggable="false"
+    />
     <div class="pc-art">
       <div class="pc-portrait">
         <PlayerPortrait

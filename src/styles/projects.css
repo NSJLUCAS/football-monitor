@@ -254,7 +254,7 @@
 }
 
 /* Narrow: no head; the name and link on top, the machines and the note below. */
-@media (max-width: 899px) {
+@media (max-width: 900px) {
   .pj-thead {
     display: none;
   }
@@ -285,5 +285,12 @@
 @media (max-width: 359px) {
   .pj-machine .pj-list {
     grid-template-columns: minmax(0, 1fr);
+  }
+}
+/* Below tablet width the header's search has its own row right above and filters this page in place:
+   a second box under it would only repeat it. */
+@media (max-width: 767px) {
+  .pj-search {
+    display: none;
   }
 }

@@ -13,7 +13,9 @@ import {
   LayoutList,
 } from '@lucide/vue'
 import { useMonitorStore } from './stores/monitor'
+import { useAppearance } from './services/appearance'
 import { useCardView } from './services/cardView'
+import { carriedQuery } from './services/filters'
 import manifest from '../theme.json'
 import { Button } from './components/ui/button'
 const store = useMonitorStore(),
@@ -21,31 +23,12 @@ const store = useMonitorStore(),
   router = useRouter()
 // The home page card view toggle sits beside the appearance toggle; it only means something on the home page.
 const { view: cardView, toggle: toggleCardView } = useCardView()
-const visitor = ref<string | null>(null)
-try {
-  visitor.value = localStorage.getItem('football-monitor:appearance')
-} catch {
-  /* Optional visitor preference. */
-}
-const media = matchMedia('(prefers-color-scheme: dark)'),
-  systemDark = ref(media.matches)
-const appearance = computed(() => visitor.value || store.config.appearance)
+// The group a page is narrowed to follows the visitor from page to page.
+const carried = computed(() => carriedQuery(route.query))
+const { dark: prefersDark, toggle: toggleAppearance } = useAppearance()
 // The ops wall is always dark; leaving it brings back the visitor's appearance.
 const bare = computed(() => route.meta.bare === true)
-const dark = computed(
-  () => bare.value || (appearance.value === 'system' ? systemDark.value : appearance.value !== 'light'),
-)
-const systemChange = () => {
-  systemDark.value = media.matches
-}
-function toggleAppearance() {
-  visitor.value = dark.value ? 'light' : 'dark'
-  try {
-    localStorage.setItem('football-monitor:appearance', visitor.value)
-  } catch {
-    /* Preference lasts this visit. */
-  }
-}
+const dark = computed(() => bare.value || prefersDark.value)
 watchEffect(() => {
   document.documentElement.classList.toggle('dark', dark.value)
   document.documentElement.dataset.motion = String(store.config.motion)
@@ -92,12 +75,10 @@ function searchShortcut(event: KeyboardEvent) {
   document.getElementById('node-search')?.focus()
 }
 onMounted(() => {
-  media.addEventListener('change', systemChange)
   window.addEventListener('keydown', searchShortcut)
   store.start()
 })
 onBeforeUnmount(() => {
-  media.removeEventListener('change', systemChange)
   window.removeEventListener('keydown', searchShortcut)
   store.stop()
 })
@@ -118,15 +99,19 @@ const connectionText = computed(
     <div class="header-inner">
       <RouterLink to="/" class="brand" aria-label="Football Monitor 首页"
         ><img src="/favicon.svg" alt="" /><span class="brand-word"
-          >FOOTBALL <strong>MONITOR</strong></span
+          ><span class="brand-first">FOOTBALL </span><strong>MONITOR</strong></span
         ></RouterLink
       >
       <nav class="main-nav" aria-label="主导航">
-        <RouterLink to="/" exact-active-class="active">首页</RouterLink
-        ><RouterLink to="/#squad">服务器</RouterLink
-        ><RouterLink to="/network" active-class="active">网络质量</RouterLink
-        ><RouterLink v-if="showProjects" to="/projects" active-class="active">项目</RouterLink
-        ><RouterLink to="/ops" class="ops-link" active-class="active">运维模式</RouterLink>
+        <!-- The home page is the server list: one entry, current whatever anchor an old link carries. -->
+        <RouterLink :to="{ path: '/', query: carried }" active-class="" exact-active-class="active"
+          >首页</RouterLink
+        ><RouterLink :to="{ path: '/network', query: carried }" active-class="active">网络质量</RouterLink
+        ><RouterLink v-if="showProjects" :to="{ path: '/projects', query: carried }" active-class="active"
+          >项目</RouterLink
+        ><RouterLink :to="{ path: '/ops', query: carried }" class="ops-link" active-class="active"
+          >运维模式</RouterLink
+        >
       </nav>
       <label class="header-search"
         ><Search :size="15" /><input
@@ -134,7 +119,8 @@ const connectionText = computed(
           :value="search"
           type="search"
           aria-label="搜索服务器"
-          placeholder="搜索名称、分组、备注或项目…"
+          placeholder="搜索服务器、项目…"
+          title="按名称、分组、备注或项目搜索"
           autocomplete="off"
           @input="onSearchInput"
           @keydown.enter="onSearchEnter"

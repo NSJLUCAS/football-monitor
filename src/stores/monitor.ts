@@ -25,6 +25,8 @@ export const useMonitorStore = defineStore('monitor', () => {
     qualityErrors = ref<Record<string, string>>({})
   let qualityAt: Record<number, number> = {}
   const saving = ref(false)
+  // Bumped whenever the session's data is dropped, so pages forget what they fetched themselves.
+  const epoch = ref(0)
   const history = new HistoryRepository()
   let realtime: RealtimeController | null = null,
     boot = 0,
@@ -40,15 +42,12 @@ export const useMonitorStore = defineStore('monitor', () => {
   watch(
     [scores, () => Object.keys(qualityErrors.value).join()],
     ([current]) => {
-      const next: Record<number, Tier> = {}
+      const next: Record<number, Tier> = {},
+        online = new Set(nodes.value.filter((n) => n.online).map((n) => n.id))
       for (const id of Object.keys(current).map(Number)) {
         const previous = tiers.value[id]
         // An online node gets its first tier only once its probe history has loaded or failed.
-        const waiting =
-          !previous &&
-          !!nodes.value.find((n) => n.id === id)?.online &&
-          !quality.value[id] &&
-          !qualityErrors.value[id]
+        const waiting = !previous && online.has(id) && !quality.value[id] && !qualityErrors.value[id]
         if (!waiting) next[id] = nextTier(current[id]!.overall, previous)
       }
       tiers.value = next
@@ -79,6 +78,7 @@ export const useMonitorStore = defineStore('monitor', () => {
   )
   function clearSensitiveState() {
     boot++
+    epoch.value++
     prefetched.clear()
     prefetchedPing.clear()
     tiers.value = {}
@@ -253,6 +253,7 @@ export const useMonitorStore = defineStore('monitor', () => {
     closed,
     connection,
     updatedAt,
+    epoch,
     groups,
     scores,
     tiers,

@@ -180,6 +180,7 @@ describe('projects page', () => {
   it('narrows to a group', async () => {
     const { wrapper } = await mountProjects()
     await button(wrapper, '欧洲节点').trigger('click')
+    await flushPromises()
     expect(machines(wrapper)).toEqual(['DE-01'])
     expect(stats(wrapper)).toContain('1 个项目')
     expect(stats(wrapper)).toContain('0 台空闲')
@@ -196,7 +197,24 @@ describe('projects page', () => {
       s.config = config({})
       s.me = { ...s.me!, authed: true }
     })
-    expect(owner.wrapper.find('.empty-state').find('a[href="/settings"]').text()).toBe('去登记')
+    // Straight to the node settings, where projects are listed.
+    const link = owner.wrapper.find('.empty-state').find('a')
+    expect(link.text()).toBe('去登记')
+    expect(link.attributes('href')).toBe('/settings?tab=node')
+  })
+  it('says what went wrong, and offers a retry, when the nodes cannot be read', async () => {
+    let retry!: ReturnType<typeof vi.spyOn>
+    const { wrapper } = await mountProjects('/projects', (s) => {
+      s.nodes = []
+      s.error = '实时连接中断，正在重试'
+      retry = vi.spyOn(s, 'bootstrap').mockResolvedValue()
+    })
+    const empty = wrapper.find('.empty-state')
+    expect(empty.find('h3').text()).toBe('暂时无法获取节点')
+    expect(empty.find('p').text()).toBe('实时连接中断，正在重试')
+    expect(empty.text()).not.toContain('添加节点')
+    await empty.find('button').trigger('click')
+    expect(retry).toHaveBeenCalled()
   })
   it('shows the closed notice when the Hub page is not public', async () => {
     const { wrapper } = await mountProjects('/projects', (s) => {

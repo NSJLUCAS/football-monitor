@@ -18,8 +18,7 @@ const emit = defineEmits<{ close: []; node: [id: number]; country: [code: string
     <button type="button" class="oc-close" aria-label="关闭" @click="emit('close')"><X :size="14" /></button>
     <template v-if="card.kind === 'node'">
       <p class="oc-kicker">
-        <span>{{ card.data.kicker }}</span
-        ><span class="oc-state">{{ card.data.state }}</span>
+        <span>{{ card.data.kicker }}</span><span class="oc-state">{{ card.data.state }}</span>
       </p>
       <h3 class="oc-name">{{ card.data.name }}</h3>
       <p class="oc-sub">
@@ -34,8 +33,7 @@ const emit = defineEmits<{ close: []; node: [id: number]; country: [code: string
       </div>
       <div class="oc-metrics">
         <div v-for="m in card.data.metrics" :key="m.label" class="oc-metric">
-          <span>{{ m.label }}</span
-          ><strong
+          <span>{{ m.label }}</span><strong
             >{{ m.value }}<small>{{ m.unit }}</small></strong
           >
         </div>
@@ -43,8 +41,8 @@ const emit = defineEmits<{ close: []; node: [id: number]; country: [code: string
       <div v-if="card.data.probes.length" class="oc-section">
         <h4>各检测线路延迟</h4>
         <div v-for="(p, i) in card.data.probes" :key="i" class="oc-latency" :data-level="p.level">
-          <span :title="p.name">{{ p.name }}</span
-          ><u><s :style="{ width: `${p.width}%` }" /></u><em>{{ p.ms === null ? '—' : `${p.ms} ms` }}</em>
+          <span :title="p.name">{{ p.name }}</span><u><s :style="{ width: `${p.width}%` }" /></u
+          ><em>{{ p.ms === null ? '—' : `${p.ms} ms` }}</em>
         </div>
       </div>
       <div class="oc-actions">

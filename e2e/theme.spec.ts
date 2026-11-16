@@ -123,6 +123,11 @@ test('dashboard renders all six skins and fits desktop, tablet, mobile and 320px
   for (const width of [1440, 768, 390, 320]) {
     await page.setViewportSize({ width, height: width === 1440 ? 1080 : 900 })
     if (width <= 390) expect(await firstRowCount(page)).toBe(2)
+    // Phones fold the overview behind one line; it is opened here for the boards and the screenshot.
+    if (width === 390) {
+      await expect(page.locator('.overview')).toBeHidden()
+      await page.locator('.overview-toggle').click()
+    }
     const [expiryTop, trafficTop] = await boardTops()
     if (width > 390) expect(trafficTop).toBe(expiryTop)
     else expect(trafficTop).toBeGreaterThan(expiryTop!)

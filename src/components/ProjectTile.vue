@@ -7,8 +7,7 @@ defineProps<{ project: ProjectConfig }>()
   <div class="pj-item" :title="project.note">
     <i class="pj-tile" :style="{ '--h': tileHue(project.name) }" aria-hidden="true">{{
       tileLetter(project.name)
-    }}</i
-    ><span class="pj-text"
+    }}</i><span class="pj-text"
       ><b>{{ project.name }}</b
       ><small>{{ project.note || KIND_LABEL[project.kind] }}</small></span
     >

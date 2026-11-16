@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
-import { RouterLink, useRoute } from 'vue-router'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { Activity, Clock, RefreshCw, Settings2, Tag } from '@lucide/vue'
 import { useMonitorStore } from '../stores/monitor'
 import {
@@ -17,7 +17,7 @@ import {
 } from '../domain/format'
 import type { HistoryResponse, MetricPoint } from '../domain/types'
 import { emptyScore, nextTier, type Tier } from '../domain/score'
-import { carriers, lossColor, lossGrade, resolveCarrier, taskLoss } from '../domain/carriers'
+import { carriers, lossColor, lossGrade, lossLevel, resolveCarrier, taskLoss } from '../domain/carriers'
 import { nodeTemplate, skinOf } from '../domain/skins'
 import {
   cpuTop,
@@ -38,18 +38,31 @@ import CarrierRow from '../components/CarrierRow.vue'
 import HistoryChart from '../components/HistoryChart.vue'
 import ScoreBreakdown from '../components/ScoreBreakdown.vue'
 import ProjectGroups from '../components/ProjectGroups.vue'
+import '../styles/detail.css'
 const store = useMonitorStore(),
-  route = useRoute()
+  route = useRoute(),
+  router = useRouter()
 const node = computed(() => store.nodes.find((n) => n.id === Number(route.params.id)))
 const score = computed(() => (node.value ? (store.scores[node.value.id] ?? emptyScore()) : null))
 const tier = computed(() =>
   node.value && score.value ? (store.tiers[node.value.id] ?? nextTier(score.value.overall)) : 'silver',
 )
-const hours = ref(6),
-  data = ref<HistoryResponse>(),
+const data = ref<HistoryResponse>(),
   busy = ref(false),
   error = ref('')
 const ranges = computed(() => windows(store.me?.history_days || 7))
+// The window and the chart tab live in the address, so a refresh or a shared link keeps them; defaults stay out.
+function setQuery(key: string, value: string | undefined) {
+  const query = { ...route.query }
+  if (value === undefined) delete query[key]
+  else query[key] = value
+  // Without the fragment: the reader stays where they are instead of being scrolled back to a section.
+  void router.replace({ query })
+}
+const hours = computed<number>({
+  get: () => ranges.value.find((h) => String(h) === route.query.hours) ?? 6,
+  set: (value) => setQuery('hours', value === 6 ? undefined : String(value)),
+})
 let generation = 0
 async function load(force = false) {
   if (!node.value) return
@@ -95,7 +108,23 @@ onBeforeUnmount(() => {
   clearInterval(timer)
 })
 // History: resources as four full-width charts on one tab, probe latency on the other.
-const historyTab = ref<'resources' | 'latency'>('resources')
+type HistoryTab = 'resources' | 'latency'
+const HISTORY_TABS: { id: HistoryTab; label: string }[] = [
+  { id: 'resources', label: '资源' },
+  { id: 'latency', label: '网络延迟' },
+]
+const historyTab = computed<HistoryTab>({
+  get: () => (route.query.chart === 'latency' ? 'latency' : 'resources'),
+  set: (value) => setQuery('chart', value === 'latency' ? 'latency' : undefined),
+})
+// Left and right move between the two tabs, as a tab list is expected to.
+function tabKey(event: KeyboardEvent) {
+  if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
+  event.preventDefault()
+  const next = historyTab.value === 'resources' ? 'latency' : 'resources'
+  historyTab.value = next
+  void nextTick(() => document.getElementById(`history-tab-${next}`)?.focus())
+}
 const metrics = computed(() => data.value?.metrics || [])
 const line = (pick: (p: MetricPoint) => number | null | undefined) =>
   metrics.value.map((p) => ({ ts: p.ts, value: pick(p) ?? null }))
@@ -255,13 +284,33 @@ const tabs = computed(() =>
     { id: 'system', label: '系统信息', show: true },
   ].filter((t) => t.show),
 )
+// The sticky bar marks the section under it: the last one whose top has passed the bar.
+const current = ref('')
+function spy() {
+  const bar = document.querySelector('.detail-tabs')
+  if (!bar) return
+  const line = bar.getBoundingClientRect().bottom + 24
+  let found = tabs.value[0]?.id ?? ''
+  for (const t of tabs.value) {
+    const top = document.getElementById(t.id)?.getBoundingClientRect().top
+    if (top !== undefined && top <= line) found = t.id
+  }
+  // The last section may be too short to ever reach the bar.
+  const page = document.documentElement
+  if (page.scrollHeight > innerHeight && innerHeight + scrollY >= page.scrollHeight - 2)
+    found = tabs.value.at(-1)?.id ?? found
+  current.value = found
+}
+onMounted(() => window.addEventListener('scroll', spy, { passive: true }))
+onBeforeUnmount(() => window.removeEventListener('scroll', spy))
+watch(tabs, () => void nextTick(spy), { immediate: true })
 function jump(id: string) {
   const target = document.getElementById(id)
   if (!target) return
   const smooth = config.value.motion && !matchMedia('(prefers-reduced-motion: reduce)').matches
   target.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'start' })
   // Keep the router's own history state; only the fragment changes so the panel can be linked.
-  window.history.replaceState(window.history.state, '', `#${id}`)
+  window.history.replaceState(window.history.state, '', `${location.pathname}${location.search}#${id}`)
 }
 const carrierTasks = computed(() =>
   node.value
@@ -302,7 +351,7 @@ const pct = (loss: number) => `${Number(loss.toFixed(1))}%`
         ><i aria-hidden="true" />{{ node.online ? '在线' : '离线' }}</span
       >
       <Button v-if="store.me?.authed" as-child
-        ><RouterLink :to="`/settings?node=${node.id}`"
+        ><RouterLink :to="`/settings?node=${node.id}&tab=node`"
           ><Settings2 :size="15" /> 配置此节点</RouterLink
         ></Button
       >
@@ -315,7 +364,14 @@ const pct = (loss: number) => `${Number(loss.toFixed(1))}%`
   </div>
   <template v-else>
     <nav class="detail-tabs" aria-label="详情分区">
-      <a v-for="t in tabs" :key="t.id" :href="`#${t.id}`" @click.prevent="jump(t.id)">{{ t.label }}</a>
+      <a
+        v-for="t in tabs"
+        :key="t.id"
+        :href="`#${t.id}`"
+        :aria-current="current === t.id ? 'location' : undefined"
+        @click.prevent="jump(t.id)"
+        >{{ t.label }}</a
+      >
     </nav>
     <div class="detail-layout">
       <aside class="detail-card-column">
@@ -436,10 +492,10 @@ const pct = (loss: number) => `${Number(loss.toFixed(1))}%`
               <span
                 v-else
                 class="carrier-task-loss"
+                :data-level="lossLevel(c.loss)"
                 :style="{ '--loss': lossColor(c.loss) }"
                 :title="`近 ${windowLabel(hours)}内探测失败的比例`"
-                >丢包 <b>{{ pct(c.loss) }}</b
-                ><em>{{ lossGrade(c.loss) }}</em></span
+                >丢包 <b>{{ pct(c.loss) }}</b><em>{{ lossGrade(c.loss) }}</em></span
               >
             </li>
           </ul>
@@ -450,11 +506,11 @@ const pct = (loss: number) => `${Number(loss.toFixed(1))}%`
                 v-for="o in otherLoss"
                 :key="o.id"
                 class="carrier-other-loss"
+                :data-level="lossLevel(o.loss)"
                 :style="{ '--loss': lossColor(o.loss) }"
                 :title="`近 ${windowLabel(hours)}内探测失败的比例`"
               >
-                <span>{{ o.name }}</span> <b>{{ pct(o.loss) }}</b
-                ><em>{{ lossGrade(o.loss) }}</em>
+                <span>{{ o.name }}</span> <b>{{ pct(o.loss) }}</b><em>{{ lossGrade(o.loss) }}</em>
               </li>
             </ul>
           </div>
@@ -490,10 +546,21 @@ const pct = (loss: number) => `${Number(loss.toFixed(1))}%`
             <h2 id="history-title" class="detail-section-title">
               历史表现 <small v-if="busy" class="muted text-xs">读取中…</small>
             </h2>
-            <div class="range-buttons" aria-label="历史时间范围">
-              <button v-for="h in ranges" :key="h" :class="{ selected: hours === h }" @click="hours = h">
-                {{ windowLabel(h) }}</button
-              ><Button variant="ghost" size="icon" aria-label="刷新历史" :disabled="busy" @click="load(true)"
+            <div class="range-buttons" role="group" aria-label="历史时间范围">
+              <button
+                v-for="h in ranges"
+                :key="h"
+                type="button"
+                :class="{ selected: hours === h }"
+                :aria-pressed="hours === h"
+                @click="hours = h"
+              >
+                {{ windowLabel(h) }}</button><Button
+                variant="ghost"
+                size="icon"
+                aria-label="刷新历史"
+                :disabled="busy"
+                @click="load(true)"
                 ><RefreshCw :size="13"
               /></Button>
             </div>
@@ -503,22 +570,27 @@ const pct = (loss: number) => `${Number(loss.toFixed(1))}%`
           </div>
           <div class="history-tabs" role="tablist" aria-label="历史图表">
             <button
+              v-for="t in HISTORY_TABS"
+              :id="`history-tab-${t.id}`"
+              :key="t.id"
               role="tab"
               type="button"
-              :aria-selected="historyTab === 'resources'"
-              @click="historyTab = 'resources'"
+              aria-controls="history-panel"
+              :aria-selected="historyTab === t.id"
+              :tabindex="historyTab === t.id ? 0 : -1"
+              @click="historyTab = t.id"
+              @keydown="tabKey"
             >
-              资源</button
-            ><button
-              role="tab"
-              type="button"
-              :aria-selected="historyTab === 'latency'"
-              @click="historyTab = 'latency'"
-            >
-              网络延迟
+              {{ t.label }}
             </button>
           </div>
-          <div class="history-charts panel" :aria-busy="busy" role="tabpanel">
+          <div
+            id="history-panel"
+            class="history-charts panel"
+            :aria-busy="busy"
+            role="tabpanel"
+            :aria-labelledby="`history-tab-${historyTab}`"
+          >
             <template v-if="historyTab === 'resources'">
               <HistoryChart
                 class="stacked"

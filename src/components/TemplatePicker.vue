@@ -8,10 +8,10 @@ const options: { id: TemplateId; name: string }[] = [
   { id: 'auto', name: '自动（按评分）' },
   ...skins.map((s) => ({ id: s.id, name: s.name })),
 ]
-const stack = (['gold', 'silver', 'bronze'] as const).map((id) => skinOf(id).image)
+const stack = (['gold', 'silver', 'bronze'] as const).map((id) => skinOf(id).small)
 </script>
 <template>
-  <div class="template-picker">
+  <div class="template-picker" :class="{ compact: inherit }">
     <button
       v-if="inherit"
       type="button"
@@ -36,9 +36,10 @@ const stack = (['gold', 'silver', 'bronze'] as const).map((id) => skinOf(id).ima
         <span v-if="t.id === 'auto'" class="skin-thumb-stack" aria-hidden="true">
           <img v-for="(src, i) in stack" :key="i" class="skin-thumb" :src="src" alt="" />
         </span>
-        <img v-else class="skin-thumb" :src="skinOf(t.id).image" alt="" />
-        <span class="template-name">{{ t.name }}</span
-        ><span v-if="modelValue === t.id" class="template-check"><Check :size="12" /></span>
+        <img v-else class="skin-thumb" :src="skinOf(t.id).small" alt="" />
+        <span class="template-name">{{ t.name }}</span><span v-if="modelValue === t.id" class="template-check"
+          ><Check :size="12"
+        /></span>
       </button>
     </div>
   </div>

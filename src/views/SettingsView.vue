@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import {
   Check,
   Save,
@@ -16,6 +16,7 @@ import {
 import manifest from '../../theme.json'
 import { useMonitorStore } from '../stores/monitor'
 import { DEFAULT_CONFIG } from '../domain/config'
+import { clearVisitorAppearance } from '../services/appearance'
 import { clearVisitorView } from '../services/cardView'
 import { skinOf } from '../domain/skins'
 import { emptyScore, nextTier } from '../domain/score'
@@ -41,11 +42,29 @@ import NodeSettings from '../components/NodeSettings.vue'
 import ExchangeRatesField from '../components/ExchangeRatesField.vue'
 import ProviderPicker from '../components/ProviderPicker.vue'
 import ProjectsEditor from '../components/ProjectsEditor.vue'
+import '../styles/settings.css'
 const store = useMonitorStore(),
-  route = useRoute()
+  route = useRoute(),
+  router = useRouter()
 const crumbs = [{ label: 'Football Monitor', to: '/' }, { label: '主题设置' }]
-const tab = ref('templates'),
-  selected = ref(Number(route.query.node) || 0)
+const tabs = [
+  { id: 'templates', label: '卡面风格', icon: Layers },
+  { id: 'global', label: '全局设置', icon: SlidersHorizontal },
+  { id: 'node', label: '节点设置', icon: Server },
+  { id: 'portrait', label: '立绘编辑', icon: Image },
+  { id: 'carriers', label: '三网线路', icon: Network },
+]
+// The category lives in `?tab=`, so a link can open a node's own settings and a refresh stays put.
+const tab = computed<string>({
+  get: () => tabs.find((t) => t.id === route.query.tab)?.id ?? 'templates',
+  set: (value) => {
+    const query = { ...route.query }
+    if (value === 'templates') delete query.tab
+    else query.tab = value
+    void router.replace({ query })
+  },
+})
+const selected = ref(Number(route.query.node) || 0)
 const values = ref<Partial<GlobalConfig>>({}),
   nodeChanges = ref<Record<string, NodeConfig | null>>({})
 const message = ref(''),
@@ -56,13 +75,6 @@ const preview = computed(() => previews.value[selected.value])
 const unsaved = computed(() => Object.values(localDrafts.value).some(Boolean))
 const editVersion = ref(0),
   portraitEditor = ref<InstanceType<typeof PortraitEditor>>()
-const tabs = [
-  { id: 'templates', label: '卡面风格', icon: Layers },
-  { id: 'global', label: '全局设置', icon: SlidersHorizontal },
-  { id: 'node', label: '节点设置', icon: Server },
-  { id: 'portrait', label: '立绘编辑', icon: Image },
-  { id: 'carriers', label: '三网线路', icon: Network },
-]
 const previewConfig = computed<ThemeConfig>(() => {
   const nodes = { ...store.config.nodes }
   for (const [id, n] of Object.entries(nodeChanges.value)) {
@@ -112,7 +124,8 @@ const toggleFields: {
 watch(
   () => store.nodes,
   (nodes) => {
-    if (!nodes.some((n) => n.id === selected.value)) selected.value = nodes[0]?.id || 0
+    // The list may arrive after the page; until then the node asked for in the address is kept.
+    if (nodes.length && !nodes.some((n) => n.id === selected.value)) selected.value = nodes[0]!.id
   },
   { immediate: true },
 )
@@ -148,6 +161,11 @@ function updateGlobal<K extends keyof GlobalConfig>(key: K, value: GlobalConfig[
 function viewChange(value: CardView) {
   clearVisitorView()
   updateGlobal('card_view', value)
+}
+// The same for the appearance: the owner's own earlier light or dark pick must not hide the new default.
+function appearanceChange(value: GlobalConfig['appearance']) {
+  clearVisitorAppearance()
+  updateGlobal('appearance', value)
 }
 function updateNode(value: NodeConfig) {
   updateNodeFor(selected.value, value)
@@ -193,7 +211,22 @@ function resetGlobal() {
   values.value = { ...DEFAULT_CONFIG }
   message.value = '全局设置已在草稿中恢复默认，请保存到 Hub。'
 }
+// Leaving with a draft asks first, inside the app and when the tab closes or reloads.
+const pending = computed(() => dirty.value || unsaved.value)
+onBeforeRouteLeave(() => !pending.value || window.confirm('有未保存的更改，离开后会丢失。确定离开吗？'))
+const closing = (event: BeforeUnloadEvent) => {
+  if (pending.value) event.preventDefault()
+}
+onMounted(() => window.addEventListener('beforeunload', closing))
+// After a save the bar at the foot of the form says so for a moment.
+const saved = ref(false)
+let savedTimer: ReturnType<typeof setTimeout> | undefined
+onBeforeUnmount(() => {
+  window.removeEventListener('beforeunload', closing)
+  clearTimeout(savedTimer)
+})
 async function save() {
+  saved.value = false
   if (unsaved.value) {
     error.value = '当前本地立绘尚未托管，请导出并绑定 HTTPS URL，或移除本地预览后保存。'
     return
@@ -210,6 +243,9 @@ async function save() {
       values.value = {}
       nodeChanges.value = {}
       message.value = '已保存到 Hub，并重新读取确认。刷新或更换设备后会恢复。'
+      saved.value = true
+      clearTimeout(savedTimer)
+      savedTimer = setTimeout(() => (saved.value = false), 4000)
     } else message.value = '本次提交已保存并确认；保存期间的新编辑仍在草稿中，请再次保存。'
   } catch (e) {
     error.value = e instanceof Error ? e.message : '保存失败，草稿已保留'
@@ -223,8 +259,7 @@ async function save() {
     description="每一张卡面，都是一台独一无二的服务器。"
   >
     <div v-if="store.me?.authed" class="settings-save">
-      <span v-if="dirty" class="dirty-label">{{ unsaved ? '含未托管图片' : '有未保存更改' }}</span
-      ><Button
+      <span v-if="dirty" class="dirty-label">{{ unsaved ? '含未托管图片' : '有未保存更改' }}</span><Button
         :disabled="(!dirty && !store.config.projectUrlsLeft) || store.saving || !!store.config.configWarning"
         @click="save"
         ><Save :size="15" />{{ store.saving ? '正在确认保存…' : '保存到 Hub' }}</Button
@@ -352,17 +387,14 @@ async function save() {
                 id="global-appearance"
                 :value="previewConfig.appearance"
                 @change="
-                  updateGlobal(
-                    'appearance',
-                    ($event.target as HTMLSelectElement).value as GlobalConfig['appearance'],
-                  )
+                  appearanceChange(($event.target as HTMLSelectElement).value as GlobalConfig['appearance'])
                 "
               >
                 <option value="dark">深色主场</option>
                 <option value="light">浅色主场</option>
                 <option value="system">跟随系统</option>
               </select>
-              <p>访客自己的外观偏好可以覆盖站点默认值。</p>
+              <p>访客可用顶栏按钮自己切换，只记在自己的浏览器里；你改了这里的默认值后，访客会重新跟随。</p>
             </div>
             <div class="toggle-list">
               <div v-for="f in toggleFields" :key="f.key" class="toggle-field">
@@ -461,6 +493,25 @@ async function save() {
         </div>
         <div class="settings-panel-footer">
           <span>设置对访客公开，请勿填写秘密或内网地址。</span><span>HUB SYNC <span class="live-dot" /></span>
+        </div>
+        <!-- The page's own save button scrolls away on a long form; this one stays at the foot of the screen. -->
+        <div
+          v-if="pending || saved"
+          class="settings-dirty-bar"
+          :data-state="error ? 'failed' : pending ? 'dirty' : 'saved'"
+        >
+          <span
+            ><Check v-if="!pending" :size="15" aria-hidden="true" />{{
+              error || (pending ? (unsaved ? '含未托管的本地图片' : '更改尚未保存') : '已保存到 Hub')
+            }}</span
+          >
+          <Button
+            v-if="pending"
+            size="sm"
+            :disabled="store.saving || !!store.config.configWarning"
+            @click="save"
+            >{{ store.saving ? '正在保存…' : '保存更改' }}</Button
+          >
         </div>
       </section>
       <aside class="settings-preview">

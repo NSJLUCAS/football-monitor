@@ -49,7 +49,7 @@ const noise = (c: number, r: number) => {
 function readColors() {
   const style = getComputedStyle(root.value!)
   colors = {
-    digit: style.getPropertyValue('--primary').trim() || colors.digit,
+    digit: style.getPropertyValue('--primary-text').trim() || colors.digit,
     water: style.getPropertyValue('--muted').trim() || colors.water,
   }
 }

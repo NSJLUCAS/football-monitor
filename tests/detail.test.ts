@@ -86,7 +86,10 @@ const history = (): HistoryResponse => ({
   step: 60,
 })
 
-async function mountDetail(configure?: (store: ReturnType<typeof useMonitorStore>) => void) {
+async function mountDetail(
+  configure?: (store: ReturnType<typeof useMonitorStore>) => void,
+  path = '/node/103',
+) {
   const router = createRouter({
     history: createMemoryHistory(),
     routes: [
@@ -95,7 +98,7 @@ async function mountDetail(configure?: (store: ReturnType<typeof useMonitorStore
       { path: '/settings', component: { template: '<div />' } },
     ],
   })
-  await router.push('/node/103')
+  await router.push(path)
   await router.isReady()
   const store = useMonitorStore()
   store.me = { authed: true, site_name: 'Monitor', public_page: true, github: false, history_days: 7 }
@@ -109,7 +112,7 @@ async function mountDetail(configure?: (store: ReturnType<typeof useMonitorStore
   configure?.(store)
   const wrapper = mount(NodeDetailView, { global: { plugins: [router] }, attachTo: document.body })
   await flushPromises()
-  return { wrapper, store, get }
+  return { wrapper, store, get, router }
 }
 
 beforeEach(() => {
@@ -156,8 +159,9 @@ describe('node detail page', () => {
     expect(wrapper.find('.page-crumbs').text()).toContain('东京 Prime')
     expect(wrapper.find('.detail-status').text()).toBe('在线')
     expect(wrapper.find('.page-head').text()).toContain('主力前锋，负责东亚流量')
-    const configure = wrapper.find('a[href="/settings?node=103"]')
-    expect(configure.text()).toContain('配置此节点')
+    // Straight to this node's own settings, not to the site-wide card style.
+    const configure = wrapper.findAll('a').find((a) => a.text().includes('配置此节点'))!
+    expect(configure.attributes('href')).toBe('/settings?node=103&tab=node')
     expect(get).toHaveBeenCalledWith(103, 6, 'all', false)
   })
 
@@ -186,7 +190,7 @@ describe('node detail page', () => {
     const { wrapper } = await mountDetail((store) => {
       store.me = { ...store.me!, authed: false }
     })
-    expect(wrapper.find('a[href="/settings?node=103"]').exists()).toBe(false)
+    expect(wrapper.find('a[href^="/settings"]').exists()).toBe(false)
   })
 
   it('links the sticky section tabs to five panels', async () => {
@@ -291,6 +295,9 @@ describe('node detail page', () => {
     expect(chips.map((c) => c.find('b').text())).toEqual(['9.4%', '0.6%'])
     expect(chips.map((c) => c.find('em').text())).toEqual(['偏高', '极少'])
     expect(chips[0]!.attributes('style')).toContain('--loss')
+    // 9.4% is grade 3 and 0.6% grade 1: the words take an ink that reads on a light panel too.
+    expect(chips.map((c) => c.attributes('data-level'))).toEqual(['3', '1'])
+    expect(wrapper.find('.carrier-task-loss[data-level]').attributes('data-level')).toBe('2')
     const notes = wrapper.findAll('.carrier-notes li')
     expect(notes.map((n) => n.find('strong').text())).toEqual(['延迟', '丢包', '线路名称'])
     expect(notes[1]!.text()).toContain('近 6 小时内探测失败的比例')
@@ -425,8 +432,91 @@ describe('node detail page', () => {
     expect(tabs.map((t) => t.text())).toEqual(['资源', '网络延迟'])
     expect(tabs[0]!.attributes('aria-selected')).toBe('true')
     await tabs[1]!.trigger('click')
+    await flushPromises()
     expect(titles()).toEqual(['TCP 延迟历史'])
     expect(wrapper.findAll('#history [role="tab"]')[1]!.attributes('aria-selected')).toBe('true')
+  })
+
+  it('keeps the window and the chart tab in the address', async () => {
+    const { wrapper, get, router } = await mountDetail(undefined, '/node/103?hours=24&chart=latency')
+    expect(get).toHaveBeenCalledWith(103, 24, 'all', false)
+    const ranges = () => wrapper.findAll('.range-buttons button[aria-pressed]')
+    expect(wrapper.find('.range-buttons').attributes('role')).toBe('group')
+    expect(ranges().map((b) => [b.text(), b.attributes('aria-pressed')])).toEqual([
+      ['1 小时', 'false'],
+      ['6 小时', 'false'],
+      ['1 天', 'true'],
+      ['7 天', 'false'],
+    ])
+    expect(wrapper.findAll('#history [role="tab"]')[1]!.attributes('aria-selected')).toBe('true')
+    await ranges()[0]!.trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.query).toEqual({ hours: '1', chart: 'latency' })
+    expect(get).toHaveBeenCalledWith(103, 1, 'all', false)
+    // The defaults stay out of the address.
+    await ranges()[1]!.trigger('click')
+    await flushPromises()
+    await wrapper.findAll('#history [role="tab"]')[0]!.trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.query).toEqual({})
+    await router.replace({ query: { hours: '5', chart: 'nonsense' } })
+    await flushPromises()
+    expect(ranges()[1]!.attributes('aria-pressed')).toBe('true')
+    expect(wrapper.findAll('#history [role="tab"]')[0]!.attributes('aria-selected')).toBe('true')
+  })
+
+  it('ties the chart tabs to their panel and moves between them with the arrow keys', async () => {
+    const { wrapper } = await mountDetail()
+    const tabs = () => wrapper.findAll('#history [role="tab"]')
+    const panel = wrapper.find('#history [role="tabpanel"]')
+    expect(tabs().map((t) => t.attributes('aria-controls'))).toEqual([
+      panel.attributes('id'),
+      panel.attributes('id'),
+    ])
+    expect(tabs().map((t) => t.attributes('tabindex'))).toEqual(['0', '-1'])
+    expect(panel.attributes('aria-labelledby')).toBe(tabs()[0]!.attributes('id'))
+    await tabs()[0]!.trigger('keydown', { key: 'ArrowRight' })
+    await flushPromises()
+    expect(tabs().map((t) => t.attributes('aria-selected'))).toEqual(['false', 'true'])
+    expect(document.activeElement).toBe(tabs()[1]!.element)
+    expect(panel.attributes('aria-labelledby')).toBe(tabs()[1]!.attributes('id'))
+    await tabs()[1]!.trigger('keydown', { key: 'ArrowLeft' })
+    await flushPromises()
+    expect(tabs().map((t) => t.attributes('aria-selected'))).toEqual(['true', 'false'])
+  })
+
+  it('marks the section being read in the sticky section tabs', async () => {
+    const { wrapper } = await mountDetail()
+    const tops: Record<string, number> = {
+      billing: -900,
+      carriers: -300,
+      score: 60,
+      history: 700,
+      system: 1500,
+    }
+    vi.spyOn(wrapper.find('.detail-tabs').element, 'getBoundingClientRect').mockReturnValue({
+      bottom: 48,
+    } as DOMRect)
+    for (const [id, top] of Object.entries(tops))
+      vi.spyOn(wrapper.find(`section#${id}`).element, 'getBoundingClientRect').mockReturnValue({
+        top,
+      } as DOMRect)
+    const current = () =>
+      wrapper
+        .findAll('.detail-tabs a')
+        .filter((a) => a.attributes('aria-current') === 'location')
+        .map((a) => a.text())
+    window.dispatchEvent(new Event('scroll'))
+    await flushPromises()
+    // 评分明细 starts 60px down, under the 48px bar: it is the one being read.
+    expect(current()).toEqual(['评分明细'])
+    tops.score = 200
+    vi.spyOn(wrapper.find('section#score').element, 'getBoundingClientRect').mockReturnValue({
+      top: 200,
+    } as DOMRect)
+    window.dispatchEvent(new Event('scroll'))
+    await flushPromises()
+    expect(current()).toEqual(['三网线路'])
   })
 
   it('shows memory and disk in GB against their totals, and rates on a log axis', async () => {
@@ -458,6 +548,7 @@ describe('node detail page', () => {
       })
     })
     await wrapper.findAll('#history [role="tab"]')[1]!.trigger('click')
+    await flushPromises()
     const chips = () => wrapper.findAll('#history .probe-chip')
     const yLabels = () => wrapper.findAll('#history .chart-axis-y').map((t) => t.text())
     expect(chips().map((c) => c.text())).toEqual([
@@ -471,11 +562,13 @@ describe('node detail page', () => {
     // Two lines share the plot, so neither one's range is shaded.
     expect(wrapper.find('#history .chart-band').exists()).toBe(false)
     await chips()[1]!.trigger('click')
+    await flushPromises()
     expect(chips()[1]!.attributes('aria-pressed')).toBe('false')
     expect(wrapper.find('#history .chart-band').attributes('fill')).toBe(carriers[0]!.color)
     expect(yLabels()).toEqual(['20 ms', '40 ms', '60 ms', '80 ms', '100 ms', '120 ms'])
     // The last line shown stays shown.
     await chips()[0]!.trigger('click')
+    await flushPromises()
     expect(chips()[0]!.attributes('aria-pressed')).toBe('true')
     // 削峰 takes each reading's median with its neighbours, flattening the 90 ms spike.
     await wrapper.find('#history .probe-despike input').setValue(true)

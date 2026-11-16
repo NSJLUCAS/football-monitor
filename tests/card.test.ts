@@ -80,6 +80,9 @@ describe('player card', () => {
     expect(wrapper.attributes('data-size')).toBe('sm')
     const face = wrapper.find('img.pc-face')
     expect(face.attributes('src')).toBe(skin.image)
+    // A grid card is about 180px wide: the browser may take the 400px copy instead of the 640px face.
+    expect(face.attributes('srcset')).toBe(`${skin.small} 400w, ${skin.image} 640w`)
+    expect(face.attributes('sizes')).toBe('200px')
     expect(face.attributes('alt')).toBe('')
     expect(wrapper.find('.pc-name').text()).toBe('HK-01')
     expect(wrapper.findAll('.pc-stat-label').map((s) => s.text())).toEqual([

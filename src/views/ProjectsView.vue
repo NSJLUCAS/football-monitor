@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { Boxes, Clock, Container, Globe, Search, Server, WifiOff } from '@lucide/vue'
 import { useMonitorStore } from '../stores/monitor'
@@ -16,8 +16,10 @@ import {
   tileLetter,
 } from '../domain/projects'
 import { providerBadge } from '../domain/providers'
+import { useGroupFilter } from '../services/filters'
 import type { MonitorNode, ProjectKind } from '../domain/types'
 import { Button } from '../components/ui/button'
+import GroupTabs from '../components/GroupTabs.vue'
 import PageHeading from '../components/PageHeading.vue'
 import ProjectGroups from '../components/ProjectGroups.vue'
 import '../styles/network.css'
@@ -25,7 +27,7 @@ import '../styles/projects.css'
 const store = useMonitorStore(),
   route = useRoute(),
   router = useRouter(),
-  group = ref<string | null>(null)
+  group = useGroupFilter()
 const crumbs = [{ label: 'Football Monitor', to: '/' }, { label: '项目' }]
 // The view and the search term live in the address, beside the header search; defaults stay out of it.
 function setQuery(key: string, value: string | undefined) {
@@ -57,8 +59,8 @@ const flag = (node: MonitorNode) => (node.country ? flagUrl(node.country) : unde
 const badge = (node: MonitorNode) => providerBadge(store.config.nodes[String(node.id)]?.provider)
 const score = (node: MonitorNode) => (node.online ? String(store.scores[node.id]?.overall ?? '—') : 'OFF')
 function clearFilters() {
-  group.value = null
   const query = { ...route.query }
+  delete query.group
   delete query.q
   delete query.kind
   void router.replace({ query })
@@ -67,26 +69,7 @@ function clearFilters() {
 <template>
   <PageHeading :crumbs="crumbs" title="项目" description="每台机器上部署了什么，每个项目在哪台机器上。">
     <template v-if="!store.closed && any" #tabs>
-      <div class="group-tabs" role="group" aria-label="节点分组">
-        <button :class="{ selected: group === null }" :aria-pressed="group === null" @click="group = null">
-          全部节点 <small>{{ store.nodes.length }}</small></button
-        ><button
-          v-for="g in store.groups"
-          :key="g"
-          :class="{ selected: group === g }"
-          :aria-pressed="group === g"
-          @click="group = g"
-        >
-          {{ g }}</button
-        ><button
-          v-if="store.groups.length && store.nodes.some((n) => !n.group)"
-          :class="{ selected: group === '' }"
-          :aria-pressed="group === ''"
-          @click="group = ''"
-        >
-          未分组
-        </button>
-      </div>
+      <GroupTabs />
     </template>
   </PageHeading>
   <div v-if="store.closed" class="empty-state panel" role="alert">
@@ -103,13 +86,14 @@ function clearFilters() {
   <div v-else-if="!store.nodes.length" class="empty-state panel">
     <Server :size="32" />
     <h3>{{ store.error ? '暂时无法获取节点' : '阵容正在等待第一位球员' }}</h3>
-    <p>请在 Monitor Hub 中添加节点，并允许在公开页显示。</p>
+    <p>{{ store.error || '请在 Monitor Hub 中添加节点，并允许在公开页显示。' }}</p>
+    <Button v-if="store.error" variant="outline" @click="store.bootstrap">重试</Button>
   </div>
   <div v-else-if="!any" class="empty-state panel">
     <Boxes :size="32" />
     <h3>还没有登记项目</h3>
     <p>在“主题设置 → 节点设置”里为每台机器添加项目。</p>
-    <RouterLink v-if="store.me?.authed" class="primary-link" to="/settings">去登记</RouterLink>
+    <RouterLink v-if="store.me?.authed" class="primary-link" to="/settings?tab=node">去登记</RouterLink>
   </div>
   <template v-else>
     <section class="network-summary panel pj-summary" aria-label="项目概览">

@@ -44,6 +44,16 @@ describe('card face assets', () => {
     expect((await pixel(id, 0, 0))[3]).toBe(0)
     expect(statSync(file(id)).size).toBeLessThanOrEqual(150 * 1024)
   })
+  // Grids and pickers show a face about 180px wide; they load this copy instead of the 640px one.
+  it.each(ids)('%s has a 400px wide copy for the card grid, well under half the size', async (id) => {
+    const small = `src/assets/cards/small/${id}.webp`
+    const meta = await sharp(small).metadata()
+    expect(meta.format).toBe('webp')
+    expect(meta.width).toBe(400)
+    expect(meta.height).toBe(538)
+    expect(meta.hasAlpha).toBe(true)
+    expect(statSync(small).size).toBeLessThan(statSync(file(id)).size * 0.6)
+  })
   it.each(ids)('%s has a sane frame box in frames.json', (id) => {
     const f = frames()[id]
     expect(f).toBeDefined()

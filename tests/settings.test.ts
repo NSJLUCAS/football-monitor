@@ -51,6 +51,9 @@ describe('TemplatePicker', () => {
     expect(global.find('[aria-label="选择自动（按评分）"]').exists()).toBe(true)
     expect(global.find('[aria-label="选择星环"]').exists()).toBe(true)
     expect(global.findAll('img.skin-thumb')).toHaveLength(20)
+    // Thumbnails are 86px wide and load the small copies.
+    const { skinOf } = await import('../src/domain/skins')
+    expect(global.find('[aria-label="选择周黑"] img').attributes('src')).toBe(skinOf('weekly-black').small)
     const node = mount(TemplatePicker, { props: { inherit: true } })
     expect(node.findAll('button')).toHaveLength(19)
     expect(node.text()).toContain('继承全局卡面')

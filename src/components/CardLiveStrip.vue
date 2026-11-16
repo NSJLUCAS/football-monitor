@@ -105,10 +105,10 @@ const bars = computed(() => {
           :data-kind="bar.kind"
           :data-state="barState"
         >
-          <span class="strip-bar-label">{{ bar.label }}</span
-          ><i class="strip-bar-leader" aria-hidden="true" /><span class="strip-bar-value">{{
-            bar.value
-          }}</span>
+          <span class="strip-bar-label">{{ bar.label }}</span><i
+            class="strip-bar-leader"
+            aria-hidden="true"
+          /><span class="strip-bar-value">{{ bar.value }}</span>
           <span class="strip-segs" aria-hidden="true"
             ><i
               v-for="(color, i) in bar.colors"

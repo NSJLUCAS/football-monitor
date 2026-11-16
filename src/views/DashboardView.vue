@@ -18,12 +18,15 @@ import {
 import { projectSearchText } from '../domain/projects'
 import { useMonitorStore } from '../stores/monitor'
 import { useCardView } from '../services/cardView'
+import { useGroupFilter } from '../services/filters'
+import { useShortRow } from '../services/gridFit'
 import { bytes, cycle, money, rate } from '../domain/format'
 import { expiringSoon, fleetSummary, parseRates, todayTrafficTop } from '../domain/fleet'
 import { flagUrl } from '../domain/flags'
 import { nextTier, type Tier } from '../domain/score'
 import type { MonitorNode } from '../domain/types'
 import { Button } from '../components/ui/button'
+import GroupTabs from '../components/GroupTabs.vue'
 import LiveCard from '../components/LiveCard.vue'
 import PageHeading from '../components/PageHeading.vue'
 import AsciiClock from '../components/AsciiClock.vue'
@@ -32,35 +35,38 @@ type Sort = 'hub' | 'score' | 'name'
 const store = useMonitorStore(),
   route = useRoute(),
   router = useRouter(),
-  group = ref<string | null>(null),
-  status = ref<Status>('all')
+  group = useGroupFilter()
 const statuses: { id: Status; label: string }[] = [
   { id: 'all', label: '全部' },
   { id: 'online', label: '在线' },
   { id: 'offline', label: '离线' },
 ]
+// Group, status, sort and search all live in the address, so a refresh or a shared link keeps them.
+function setQuery(key: string, value: string | undefined) {
+  const query = { ...route.query }
+  if (value === undefined) delete query[key]
+  else query[key] = value
+  void router.replace({ query })
+}
+const status = computed<Status>({
+  get: () => statuses.find((s) => s.id === route.query.status)?.id ?? 'all',
+  set: (value) => setQuery('status', value === 'all' ? undefined : value),
+})
 const { view } = useCardView()
 const crumbs = [{ label: 'Football Monitor', to: '/' }, { label: '首页' }]
 const search = computed(() => (typeof route.query.q === 'string' ? route.query.q : ''))
 const SORTS: Sort[] = ['hub', 'score', 'name']
-// Kept in `?sort=` beside the search, so a refresh or a shared link keeps the order; Hub order leaves it out.
+// Hub order leaves `?sort=` out.
 const sort = computed<Sort>({
   get: () => SORTS.find((s) => s === route.query.sort) ?? 'hub',
-  set: (value) => {
-    const query = { ...route.query }
-    if (value === 'hub') delete query.sort
-    else query.sort = value
-    void router.replace({ query })
-  },
+  set: (value) => setQuery('sort', value === 'hub' ? undefined : value),
 })
 function clearFilters() {
-  group.value = null
-  status.value = 'all'
-  if ('q' in route.query) {
-    const query = { ...route.query }
-    delete query.q
-    void router.replace({ query })
-  }
+  const query = { ...route.query }
+  delete query.group
+  delete query.status
+  delete query.q
+  void router.replace({ query })
 }
 const grouped = computed(() => store.nodes.filter((n) => group.value === null || n.group === group.value))
 const overall = (n: MonitorNode) => store.scores[n.id]?.overall ?? null
@@ -69,14 +75,23 @@ const filtered = computed(() => {
   const list = grouped.value.filter(
     (n) =>
       (status.value === 'all' || n.online === (status.value === 'online')) &&
-      `${n.name} ${n.group} ${n.public_remark} ${projectSearchText(store.config.nodes[String(n.id)]?.projects)}`
-        .toLowerCase()
-        .includes(term),
+      // Nothing typed: no text is put together for every node on every update.
+      (!term ||
+        `${n.name} ${n.group} ${n.public_remark} ${projectSearchText(store.config.nodes[String(n.id)]?.projects)}`
+          .toLowerCase()
+          .includes(term)),
   )
   if (sort.value === 'name') return [...list].sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'))
   if (sort.value === 'score') return [...list].sort((a, b) => (overall(b) ?? -1) - (overall(a) ?? -1))
   return list
 })
+// Fewer cards than one row holds: they widen a little and sit in the middle rather than leaving half the row bare.
+const grid = ref<HTMLElement | null>(null)
+const short = useShortRow(
+  grid,
+  () => filtered.value.length,
+  () => [view.value, store.config.layout, store.config.card_size],
+)
 const summary = computed(() =>
   fleetSummary(grouped.value, parseRates(store.config.exchange_rates) ?? { CNY: 1 }),
 )
@@ -98,12 +113,14 @@ interface Tile {
   value: string
   unit?: string
   tone?: string
+  /** The two readings the page is opened for: drawn larger than the rest. */
+  lead?: boolean
   note?: string
   /** Shares of a thin bar under the value, 0 to 1. */
   bar?: Segment[]
   detail?: string
   /** Recent rates, oldest first, drawn as a line in the empty space of the tile. */
-  spark?: { kind: 'up' | 'down'; values: number[] }
+  spark?: { kind: 'up' | 'down'; line: string; area: string } | null
 }
 const usage = (used: number, total: number): Partial<Tile> => {
   if (!total) return { value: '—', unit: '' }
@@ -145,6 +162,20 @@ watch(
   },
 )
 watch(group, () => (samples.value = []))
+// Sparkline in a 100 × 24 box: the samples span the whole width however few there are, spread between the
+// lowest and the highest; a steady rate runs through the middle. One sample is not a line yet.
+function spark(kind: 'up' | 'down', values: number[]) {
+  if (values.length < 2) return null
+  const lo = Math.min(...values),
+    hi = Math.max(...values),
+    steady = hi - lo <= hi * 0.02,
+    step = 100 / (values.length - 1),
+    pts = values.map((v, i) => {
+      const y = steady ? 12 : 22 - ((v - lo) / (hi - lo)) * 20
+      return `${Number((i * step).toFixed(1))},${Number(y.toFixed(1))}`
+    })
+  return { kind, line: pts.join(' '), area: `0,24 ${pts.join(' ')} 100,24` }
+}
 const tiles = computed((): Tile[] => {
   const s = summary.value,
     [traffic, trafficUnit] = split(bytes(s.traffic)),
@@ -157,12 +188,20 @@ const tiles = computed((): Tile[] => {
       value: String(s.online),
       unit: `/ ${s.total}`,
       tone: 'summary-online',
+      lead: true,
       ...(s.total && {
         bar: [{ share: s.online / s.total, tone: 'online' }],
         detail: s.online === s.total ? '全部在线' : `离线 ${s.total - s.online} 台`,
       }),
     },
-    { label: '平均评分', icon: Gauge, value: average.value, tone: 'summary-score', ...tierSplit.value },
+    {
+      label: '平均评分',
+      icon: Gauge,
+      value: average.value,
+      tone: 'summary-score',
+      lead: true,
+      ...tierSplit.value,
+    },
     { label: '内存用量', icon: MemoryStick, ...usage(s.memUsed, s.memTotal) } as Tile,
     { label: '硬盘用量', icon: HardDrive, ...usage(s.diskUsed, s.diskTotal) } as Tile,
     ...(store.config.show_billing
@@ -189,31 +228,39 @@ const tiles = computed((): Tile[] => {
       icon: ChevronsUp,
       value: up!,
       unit: upUnit,
-      spark: { kind: 'up', values: samples.value.map((v) => v.tx) },
+      spark: spark(
+        'up',
+        samples.value.map((v) => v.tx),
+      ),
     },
     {
       label: '实时下行',
       icon: ChevronsDown,
       value: down!,
       unit: downUnit,
-      spark: { kind: 'down', values: samples.value.map((v) => v.rx) },
+      spark: spark(
+        'down',
+        samples.value.map((v) => v.rx),
+      ),
     },
   ]
 })
-// Sparkline in a 100 × 24 box: the newest sample at the right edge, spread between the lowest and the
-// highest sample; a steady rate runs through the middle.
-const SPARK_STEP = 100 / (SAMPLES - 1)
-function sparkPoints(values: number[]) {
-  const lo = Math.min(...values),
-    hi = Math.max(...values),
-    steady = hi - lo <= hi * 0.02,
-    pts = values.map((v, i) => {
-      const x = 100 - (values.length - 1 - i) * SPARK_STEP,
-        y = steady ? 12 : 22 - ((v - lo) / (hi - lo)) * 20
-      return `${Number(x.toFixed(1))},${Number(y.toFixed(1))}`
-    })
-  const first = pts[0]!.split(',')[0]
-  return { line: pts.join(' '), area: `${first},24 ${pts.join(' ')} 100,24` }
+// Phones open on the squad: the overview folds behind one line there until asked for, remembered per browser.
+const OVERVIEW_KEY = 'football-monitor:overview'
+const overviewOpen = ref(false)
+try {
+  overviewOpen.value = localStorage.getItem(OVERVIEW_KEY) === 'open'
+} catch {
+  /* Optional visitor preference. */
+}
+function toggleOverview() {
+  overviewOpen.value = !overviewOpen.value
+  try {
+    if (overviewOpen.value) localStorage.setItem(OVERVIEW_KEY, 'open')
+    else localStorage.removeItem(OVERVIEW_KEY)
+  } catch {
+    /* Preference lasts this visit. */
+  }
 }
 const daysText = (days: number | null) =>
   days === null ? '' : days < 0 ? `已过期 ${-days} 天` : days === 0 ? '今天' : `${days} 天`
@@ -231,26 +278,7 @@ const average = computed(() => {
     >
     <template v-if="store.config.show_clock" #aside><AsciiClock :motion="store.config.motion" /></template>
     <template v-if="!store.closed" #tabs>
-      <div class="group-tabs" role="group" aria-label="节点分组">
-        <button :class="{ selected: group === null }" :aria-pressed="group === null" @click="group = null">
-          全部节点 <small>{{ store.nodes.length }}</small></button
-        ><button
-          v-for="g in store.groups"
-          :key="g"
-          :class="{ selected: group === g }"
-          :aria-pressed="group === g"
-          @click="group = g"
-        >
-          {{ g }}</button
-        ><button
-          v-if="store.groups.length && store.nodes.some((n) => !n.group)"
-          :class="{ selected: group === '' }"
-          :aria-pressed="group === ''"
-          @click="group = ''"
-        >
-          未分组
-        </button>
-      </div>
+      <GroupTabs />
     </template>
   </PageHeading>
   <div v-if="store.closed" class="empty-state panel" role="alert">
@@ -261,21 +289,51 @@ const average = computed(() => {
     ><Button variant="outline" @click="store.bootstrap">重新检查</Button>
   </div>
   <template v-else>
-    <div v-if="store.config.show_summary" class="overview" :data-boards="boards">
+    <button
+      v-if="store.config.show_summary"
+      type="button"
+      class="overview-toggle panel"
+      aria-controls="overview"
+      :aria-expanded="overviewOpen"
+      @click="toggleOverview"
+    >
+      <span
+        >在线 <b class="summary-online">{{ summary.online }}/{{ summary.total }}</b></span
+      >
+      <span
+        >评分 <b class="summary-score">{{ average }}</b></span
+      >
+      <span class="overview-rates">↑ {{ rate(summary.tx) }} ↓ {{ rate(summary.rx) }}</span>
+      <span class="overview-more"
+        >{{ overviewOpen ? '收起' : '汇总' }}<ChevronDown :size="14" aria-hidden="true"
+      /></span>
+    </button>
+    <div
+      v-if="store.config.show_summary"
+      id="overview"
+      class="overview"
+      :data-boards="boards"
+      :data-open="overviewOpen"
+    >
       <section class="summary-grid" aria-label="服务器汇总">
-        <div v-for="t in tiles" :key="t.label" class="summary-stat panel">
+        <div
+          v-for="t in tiles"
+          :key="t.label"
+          class="summary-stat panel"
+          :data-lead="t.lead ? '' : undefined"
+        >
           <span class="summary-stat-label">{{ t.label }}</span>
           <component :is="t.icon" class="summary-icon" :size="18" aria-hidden="true" />
           <svg
-            v-if="t.spark && t.spark.values.length > 1"
+            v-if="t.spark"
             class="summary-spark"
             :data-kind="t.spark.kind"
             viewBox="0 0 100 24"
             preserveAspectRatio="none"
             aria-hidden="true"
           >
-            <polygon :points="sparkPoints(t.spark.values).area" />
-            <polyline :points="sparkPoints(t.spark.values).line" />
+            <polygon :points="t.spark.area" />
+            <polyline :points="t.spark.line" />
           </svg>
           <div class="summary-stat-body">
             <strong class="summary-stat-value" :class="t.tone"
@@ -397,17 +455,22 @@ const average = computed(() => {
           {{
             store.nodes.length
               ? '试试其他名称，或切换分组。'
-              : '请在 Monitor Hub 中添加节点，并允许在公开页显示。'
+              : store.error
+                ? '连接恢复后会自动显示，也可以点上方的“重试”。'
+                : '请在 Monitor Hub 中添加节点，并允许在公开页显示。'
           }}
         </p>
         <Button v-if="store.nodes.length" variant="outline" @click="clearFilters">查看全部节点</Button>
       </div>
       <div
         v-else
+        ref="grid"
         class="card-grid"
         :data-layout="store.config.layout"
         :data-size="store.config.card_size"
         :data-view="view"
+        :data-short="short ? '' : undefined"
+        :style="short ? { '--short-count': short.count, '--short-cap': `${short.cap}px` } : undefined"
       >
         <LiveCard v-for="node in filtered" :key="node.id" :node="node" :view="view" />
       </div>

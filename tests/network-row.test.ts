@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createMemoryHistory, createRouter } from 'vue-router'
@@ -59,6 +60,34 @@ describe('network row', () => {
     expect(telecom!.text()).toContain('98ms')
     expect(telecom!.attributes('title')).toContain('CN2 GIA')
     expect(unicom!.text()).toBe('—')
+    // 107 ms and 98 ms are grade 1: the stylesheet picks an ink the panel can carry, light or dark.
+    expect(w.find('.nr-overall b').attributes('data-level')).toBe('1')
+    expect(telecom!.find('b').attributes('data-level')).toBe('1')
+    expect(w.find('.nr-overall b').attributes('style')).toBeUndefined()
+  })
+
+  it('writes graded readings in inks that can be read on the light and the dark panel', () => {
+    const css = readFileSync('src/style.css', 'utf8')
+    const block = (selector: string) => css.match(new RegExp(`${selector} \\{([^}]*)\\}`))![1]!
+    const inks = (text: string) =>
+      [0, 1, 2, 3, 4].map((n) => text.match(new RegExp(`--grade-${n}: (#[0-9a-f]{6});`))![1]!)
+    const luminance = (hex: string) => {
+      const [r, g, b] = [1, 3, 5].map((i) => {
+        const c = parseInt(hex.slice(i, i + 2), 16) / 255
+        return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
+      })
+      return 0.2126 * r! + 0.7152 * g! + 0.0722 * b!
+    }
+    const contrast = (a: string, b: string) => {
+      const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x)
+      return (hi! + 0.05) / (lo! + 0.05)
+    }
+    const surface = (text: string) => text.match(/--surface: (#[0-9a-f]{6});/)![1]!
+    for (const selector of [':root', ':root\\.dark']) {
+      const text = block(selector)
+      for (const ink of inks(text))
+        expect(contrast(ink, surface(text)), `${selector} ${ink}`).toBeGreaterThanOrEqual(4.5)
+    }
   })
 
   it('flags loss at or above 3%', async () => {
@@ -81,6 +110,24 @@ describe('network row', () => {
 
   it('hides the carrier columns when show_carriers is off', async () => {
     expect((await row({ showCarriers: false })).findAll('.nr-carrier')).toHaveLength(0)
+  })
+
+  it('names every reading for screen readers, which never see the column heads', async () => {
+    const w = await row()
+    expect(w.findAll('.network-row > .sr-only').map((l) => l.text())).toEqual([
+      '综合',
+      '电信',
+      '联通',
+      '移动',
+      '最近丢包',
+      '抖动',
+    ])
+    const plain = await row({ showCarriers: false })
+    expect(plain.findAll('.network-row > .sr-only').map((l) => l.text())).toEqual([
+      '综合',
+      '最近丢包',
+      '抖动',
+    ])
   })
 
   it('marks offline and failed rows', async () => {

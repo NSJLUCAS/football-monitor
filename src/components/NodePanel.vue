@@ -154,8 +154,7 @@ const probes = computed(() =>
     <div class="np-meters">
       <div v-for="m in meters" :key="m.key" class="np-meter" :data-key="m.key">
         <div class="np-meter-top">
-          <span>{{ m.label }}</span
-          ><b :data-grade="m.grade">{{ m.value }}</b>
+          <span>{{ m.label }}</span><b :data-grade="m.grade">{{ m.value }}</b>
         </div>
         <span class="np-bar" aria-hidden="true"
           ><i v-if="m.share !== null" :data-grade="m.grade" :style="{ width: `${m.share * 100}%` }"

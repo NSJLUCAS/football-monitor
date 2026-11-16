@@ -173,8 +173,12 @@
   outline: 2px solid var(--primary);
   outline-offset: -2px;
 }
-.network-row[data-online='false'] {
-  opacity: 0.55;
+/* An offline row steps back without fading: dimming the whole row left its text below readable contrast. */
+.network-row[data-online='false'] .nr-name b {
+  color: var(--muted);
+}
+.network-row[data-online='false'] .nr-flag {
+  filter: grayscale(1);
 }
 .nr-node {
   display: flex;
@@ -232,7 +236,7 @@
   font-variant-numeric: tabular-nums;
 }
 .nr-cell b {
-  color: var(--foreground);
+  color: var(--grade, var(--foreground));
   font-size: 14px;
   font-weight: 700;
   white-space: nowrap;
@@ -251,7 +255,7 @@
   white-space: nowrap;
 }
 .nr-cell small[data-alert] {
-  color: #fb923c;
+  color: var(--grade-3);
   font-weight: 700;
 }
 .nr-last b {
@@ -286,7 +290,7 @@
   }
 }
 /* Narrow: no head; the name and trend on top, the readings below, each with its own label. */
-@media (max-width: 899px) {
+@media (max-width: 900px) {
   .network-head {
     display: none;
   }
@@ -302,6 +306,10 @@
   .nr-node,
   .nr-trend {
     grid-column: 1 / -1;
+  }
+  /* The labels below are read out here, so the hidden names would only repeat them. */
+  .network-row > .sr-only {
+    display: none;
   }
   .nr-cell::before {
     content: attr(data-label);
@@ -330,6 +338,10 @@
     flex-basis: 100%;
     max-width: 100%;
     overflow-x: auto;
+  }
+  /* A finger needs more than the 30px a pointer gets. */
+  .ns-ranges button {
+    min-height: 38px;
   }
   .network-row {
     grid-template-columns: repeat(3, minmax(0, 1fr));

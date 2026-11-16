@@ -146,10 +146,12 @@ describe('dashboard', () => {
     const { wrapper } = await mountDashboard()
     const offline = wrapper.findAll('.status-filter button').find((b) => b.text() === '离线')!
     await offline.trigger('click')
+    await flushPromises()
     expect(cardNames(wrapper)).toEqual(['新加坡 C'])
     expect(offline.attributes('aria-pressed')).toBe('true')
     const online = wrapper.findAll('.status-filter button').find((b) => b.text() === '在线')!
     await online.trigger('click')
+    await flushPromises()
     expect(cardNames(wrapper)).toEqual(['香港 A', '东京 B', '法兰克福 D'])
     wrapper.unmount()
   })
@@ -189,6 +191,79 @@ describe('dashboard', () => {
     wrapper.unmount()
   })
 
+  it('keeps the group and the status in the address, so a refresh or a shared link keeps them', async () => {
+    const { wrapper, router } = await mountDashboard('/?group=欧洲节点')
+    const tab = (label: string) =>
+      wrapper.findAll('.group-tabs button').find((b) => b.text().startsWith(label))!
+    const status = (label: string) =>
+      wrapper.findAll('.status-filter button').find((b) => b.text() === label)!
+    expect(cardNames(wrapper)).toEqual(['法兰克福 D'])
+    expect(tab('欧洲节点').attributes('aria-pressed')).toBe('true')
+    await tab('亚洲节点').trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.query).toEqual({ group: '亚洲节点' })
+    await status('离线').trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.query).toEqual({ group: '亚洲节点', status: 'offline' })
+    expect(cardNames(wrapper)).toEqual(['新加坡 C'])
+    await tab('全部节点').trigger('click')
+    await flushPromises()
+    await status('全部').trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.query).toEqual({})
+    // A group Hub no longer has, or a status that does not exist, shows everything.
+    await router.replace({ query: { group: '不存在', status: 'nonsense' } })
+    await flushPromises()
+    expect(cardNames(wrapper)).toHaveLength(4)
+    expect(tab('全部节点').attributes('aria-pressed')).toBe('true')
+    wrapper.unmount()
+  })
+
+  it('folds the overview behind a one-line summary that phones show first', async () => {
+    localStorage.removeItem('football-monitor:overview')
+    const { wrapper } = await mountDashboard()
+    const toggle = () => wrapper.find('.overview-toggle')
+    expect(toggle().attributes('aria-expanded')).toBe('false')
+    expect(toggle().attributes('aria-controls')).toBe(wrapper.find('.overview').attributes('id'))
+    expect(wrapper.find('.overview').attributes('data-open')).toBe('false')
+    // Online count, average score and the live rates, as in the tiles.
+    const text = toggle().text().replace(/\s+/g, ' ')
+    expect(text).toContain('在线 3/4')
+    expect(text).toContain('评分 75')
+    expect(text).toContain('1.5 KB/s')
+    expect(text).toContain('3 KB/s')
+    await toggle().trigger('click')
+    expect(toggle().attributes('aria-expanded')).toBe('true')
+    expect(wrapper.find('.overview').attributes('data-open')).toBe('true')
+    // The choice is remembered in this browser.
+    wrapper.unmount()
+    const again = await mountDashboard()
+    expect(again.wrapper.find('.overview').attributes('data-open')).toBe('true')
+    await again.wrapper.find('.overview-toggle').trigger('click')
+    expect(localStorage.getItem('football-monitor:overview')).toBeNull()
+    // Only phones fold it: wider screens never see the toggle and always see the overview.
+    const css = readFileSync('src/style.css', 'utf8')
+    expect(css).toMatch(/\.overview-toggle\s*\{[^}]*display:\s*none/)
+    expect(css).toMatch(
+      /@media \(max-width: 639px\) \{[^@]*\.overview\[data-open='false'\]\s*\{[^}]*display:\s*none/,
+    )
+    again.wrapper.unmount()
+  })
+
+  it('does not ask for nodes to be added when they simply could not be read', async () => {
+    const { wrapper, store } = await mountDashboard()
+    store.nodes = []
+    store.error = '实时连接中断，正在重试'
+    await flushPromises()
+    const empty = wrapper.find('.squad-section .empty-state')
+    expect(empty.find('h3').text()).toBe('暂时无法获取节点')
+    expect(empty.find('p').text()).toBe('连接恢复后会自动显示，也可以点上方的“重试”。')
+    store.error = ''
+    await flushPromises()
+    expect(wrapper.find('.squad-section .empty-state p').text()).toContain('请在 Monitor Hub 中添加节点')
+    wrapper.unmount()
+  })
+
   it('filters by the q route query', async () => {
     const { wrapper, router } = await mountDashboard('/?q=东京')
     expect(cardNames(wrapper)).toEqual(['东京 B'])
@@ -204,6 +279,7 @@ describe('dashboard', () => {
     expect(summaryValue(wrapper, '在线节点')).toBe('3/ 4')
     const asia = wrapper.findAll('.group-tabs button').find((b) => b.text() === '亚洲节点')!
     await asia.trigger('click')
+    await flushPromises()
     expect(summaryValue(wrapper, '平均评分')).toBe('76')
     expect(summaryValue(wrapper, '在线节点')).toBe('2/ 3')
     store.nodes = [node(3, '新加坡 C', '亚洲节点', 0, false)]
@@ -267,6 +343,8 @@ describe('dashboard', () => {
     const line = tile('实时上行').find('.summary-spark polyline').attributes('points')!.split(' ')
     expect(line).toHaveLength(2)
     expect(line[1]!.split(',')[1]).toBe('2')
+    // However few the samples, the line spans the tile instead of huddling at its right edge.
+    expect(line.map((p) => p.split(',')[0])).toEqual(['0', '100'])
     expect(tile('实时下行').find('.summary-spark polyline').exists()).toBe(true)
     expect(tile('在线节点').find('.summary-spark').exists()).toBe(false)
     wrapper.unmount()
@@ -308,6 +386,7 @@ describe('dashboard', () => {
       .findAll('.group-tabs button')
       .find((b) => b.text() === '欧洲节点')!
       .trigger('click')
+    await flushPromises()
     expect(
       board()
         .findAll('.expiry-name')
@@ -449,6 +528,49 @@ describe('top bar search', () => {
     localStorage.removeItem('football-monitor:appearance')
   })
 
+  it('has one home entry in the navigation, current on the home page whatever anchor is open', async () => {
+    const { wrapper, router } = await mountApp('/')
+    const current = () =>
+      wrapper
+        .findAll('.main-nav a')
+        .filter((a) => a.attributes('aria-current') === 'page')
+        .map((a) => [a.text(), a.classes().includes('active')])
+    expect(wrapper.findAll('.main-nav a').map((a) => a.text())).not.toContain('服务器')
+    expect(current()).toEqual([['首页', true]])
+    // Old links to the server list still open the home page.
+    await router.push('/#squad')
+    await flushPromises()
+    expect(current()).toEqual([['首页', true]])
+    expect(wrapper.findAll('.main-nav a.active')).toHaveLength(1)
+    await router.push('/network')
+    await flushPromises()
+    expect(current()).toEqual([['网络质量', true]])
+    wrapper.unmount()
+  })
+
+  it('keeps the search hint short enough for the narrow header', async () => {
+    const { wrapper } = await mountApp('/')
+    expect(wrapper.find('#node-search').attributes('placeholder')!.length).toBeLessThanOrEqual(10)
+    wrapper.unmount()
+  })
+
+  it('carries the chosen group along the main navigation', async () => {
+    const { wrapper, router } = await mountApp('/?group=亚洲节点')
+    const href = (label: string) =>
+      decodeURIComponent(
+        wrapper
+          .findAll('.main-nav a')
+          .find((a) => a.text() === label)!
+          .attributes('href')!,
+      )
+    expect(href('网络质量')).toBe('/network?group=亚洲节点')
+    expect(href('运维模式')).toBe('/ops?group=亚洲节点')
+    await router.replace({ query: {} })
+    await flushPromises()
+    expect(href('网络质量')).toBe('/network')
+    wrapper.unmount()
+  })
+
   it('filters in place on the network page', async () => {
     const { wrapper, router } = await mountApp('/network')
     const input = wrapper.find<HTMLInputElement>('header input#node-search')
@@ -502,6 +624,7 @@ describe('top bar search', () => {
     expect(toggle().attributes('aria-label')).toBe('切换为左右形式')
     expect(toggle().element.nextElementSibling?.getAttribute('aria-label')).toMatch(/外观$/)
     await toggle().trigger('click')
+    await flushPromises()
     expect(wrapper.find('.card-grid').attributes('data-view')).toBe('split')
     expect(toggle().attributes('aria-label')).toBe('切换为上下形式')
     // The site default is still stacked, so this browser keeps the pick against it.
@@ -513,6 +636,7 @@ describe('top bar search', () => {
     await flushPromises()
     expect(wrapper.find('.card-grid').attributes('data-view')).toBe('split')
     await toggle().trigger('click')
+    await flushPromises()
     expect(wrapper.find('.card-grid').attributes('data-view')).toBe('stacked')
     await router.push('/settings')
     await flushPromises()

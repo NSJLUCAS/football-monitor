@@ -11,11 +11,15 @@ import {
   qualityBar,
   sortNodes,
   type NetworkSort,
+  type NodeQuality,
+  type Segment,
   type Source,
 } from '../domain/network'
-import type { HistoryResponse } from '../domain/types'
+import type { HistoryResponse, NodeConfig } from '../domain/types'
 import { ApiError } from '../services/api'
+import { useGroupFilter } from '../services/filters'
 import { Button } from '../components/ui/button'
+import GroupTabs from '../components/GroupTabs.vue'
 import PageHeading from '../components/PageHeading.vue'
 import NetworkRow from '../components/NetworkRow.vue'
 import QualityBar from '../components/QualityBar.vue'
@@ -23,7 +27,7 @@ import '../styles/network.css'
 const store = useMonitorStore(),
   route = useRoute(),
   router = useRouter(),
-  group = ref<string | null>(null)
+  group = useGroupFilter()
 const crumbs = [{ label: 'Football Monitor', to: '/' }, { label: '网络质量' }]
 const SORTS: { id: NetworkSort; label: string }[] = [
   { id: 'hub', label: 'Hub 顺序' },
@@ -74,15 +78,19 @@ const extra = ref<Record<number, HistoryResponse>>({}),
   now = ref(Date.now() / 1000)
 let generation = 0,
   shown = 24
-function load() {
+// `fresh` goes past the history cache: it keeps answers for a minute, counted from when they arrived, so a
+// plain request on the minute would be served the old one and the page would refresh every other minute.
+function load(fresh = false) {
   const epoch = ++generation,
     window = hours.value
   for (const id of onlineIds.value)
-    store.history.get(id, window, 'ping', false, 0).then(
+    store.history.get(id, window, 'ping', fresh, 0).then(
       (result) => {
         if (epoch !== generation) return
         extra.value[id] = result
         delete failures.value[id]
+        // The newest probes are newer than the clock of the last refresh; the right-most slice keeps them.
+        now.value = Math.max(now.value, Date.now() / 1000)
       },
       (e: unknown) => {
         if (e instanceof ApiError && e.status === 401) store.unauthorized()
@@ -95,13 +103,22 @@ function load() {
 function dropWindow(window: number) {
   if (window !== 24) store.history.drop((_id, h, series) => series === 'ping' && h === window)
 }
-function refresh() {
+function refresh(fresh = false) {
   now.value = Date.now() / 1000
   if (hours.value === 24) {
     for (const id of onlineIds.value)
       if (!store.quality[id] && !store.qualityErrors[id]) void store.loadQuality(id, false, 0)
-  } else load()
+  } else load(fresh)
 }
+// A lost session drops what the store holds; what this page fetched itself goes with it.
+watch(
+  () => store.epoch,
+  () => {
+    generation++
+    extra.value = {}
+    failures.value = {}
+  },
+)
 watch(
   [hours, () => onlineIds.value.join()],
   ([window], previous) => {
@@ -121,7 +138,7 @@ const timer = setInterval(() => {
   if (!document.hidden && !store.closed) {
     // The day follows the store's own pace; its ten-minute guard keeps this cheap.
     if (hours.value === 24) for (const id of onlineIds.value) void store.loadQuality(id, false, 0)
-    refresh()
+    refresh(true)
   }
 }, 60000)
 onBeforeUnmount(() => {
@@ -131,6 +148,30 @@ onBeforeUnmount(() => {
   clearInterval(timer)
 })
 
+// Every push from the Hub replaces the node list; a row's figures only change with its probes, its
+// carrier settings, the window or the clock, so they are kept per history object until one of those does.
+interface RowReading {
+  config: NodeConfig | undefined
+  hours: number
+  now: number
+  quality: NodeQuality
+  segments: Segment[]
+}
+const readings = new WeakMap<HistoryResponse, RowReading>()
+function reading(history: HistoryResponse, config: NodeConfig | undefined): RowReading {
+  const kept = readings.get(history)
+  if (kept && kept.config === config && kept.hours === hours.value && kept.now === now.value) return kept
+  const quality = nodeQuality(history, config)
+  const fresh = {
+    config,
+    hours: hours.value,
+    now: now.value,
+    quality,
+    segments: qualityBar([{ history, taskIds: quality.lines }], hours.value, now.value),
+  }
+  readings.set(history, fresh)
+  return fresh
+}
 const rows = computed(() => {
   const list = matched.value
     .filter((n) => showOffline.value || n.online)
@@ -140,15 +181,12 @@ const rows = computed(() => {
           ? store.quality[node.id]
           : extra.value[node.id]
         : undefined
-      const quality = history ? nodeQuality(history, store.config.nodes[String(node.id)]) : null
+      const read = history ? reading(history, store.config.nodes[String(node.id)]) : null
       return {
         node,
         history,
-        quality,
-        segments:
-          history && quality
-            ? qualityBar([{ history, taskIds: quality.lines }], hours.value, now.value)
-            : null,
+        quality: read?.quality ?? null,
+        segments: read?.segments ?? null,
         failed:
           node.online &&
           !history &&
@@ -157,6 +195,26 @@ const rows = computed(() => {
     })
   return sortNodes(list, sort.value)
 })
+// The site bar reads every loaded row; it is redrawn only when one of them, the window or the clock changes.
+let siteBar: { histories: HistoryResponse[]; hours: number; now: number; bar: Segment[] } | null = null
+function barOf(sources: Source[]) {
+  const histories = sources.map((s) => s.history)
+  if (
+    siteBar &&
+    siteBar.hours === hours.value &&
+    siteBar.now === now.value &&
+    siteBar.histories.length === histories.length &&
+    siteBar.histories.every((h, i) => h === histories[i])
+  )
+    return siteBar.bar
+  siteBar = {
+    histories,
+    hours: hours.value,
+    now: now.value,
+    bar: qualityBar(sources, hours.value, now.value),
+  }
+  return siteBar.bar
+}
 const summary = computed(() => {
   const online = matched.value.filter((n) => n.online),
     loaded = rows.value.filter((r) => r.node.online && r.history && r.quality)
@@ -166,14 +224,14 @@ const summary = computed(() => {
     total: matched.value.length,
     lines: loaded.reduce((sum, r) => sum + r.quality!.lines.length, 0),
     lossy: loaded.reduce((sum, r) => sum + r.quality!.lossyLines, 0),
-    bar: loaded.length ? qualityBar(sources, hours.value, now.value) : null,
+    bar: loaded.length ? barOf(sources) : null,
     // Sweeps only while an online node still has neither probes nor a failure.
     pending: rows.value.some((r) => r.node.online && !r.history && !r.failed),
   }
 })
 function clearFilters() {
-  group.value = null
   const query = { ...route.query }
+  delete query.group
   delete query.q
   delete query.offline
   void router.replace({ query })
@@ -182,26 +240,7 @@ function clearFilters() {
 <template>
   <PageHeading :crumbs="crumbs" title="网络质量" description="所有节点各条探测线路的延迟、丢包与抖动。">
     <template v-if="!store.closed" #tabs>
-      <div class="group-tabs" role="group" aria-label="节点分组">
-        <button :class="{ selected: group === null }" :aria-pressed="group === null" @click="group = null">
-          全部节点 <small>{{ store.nodes.length }}</small></button
-        ><button
-          v-for="g in store.groups"
-          :key="g"
-          :class="{ selected: group === g }"
-          :aria-pressed="group === g"
-          @click="group = g"
-        >
-          {{ g }}</button
-        ><button
-          v-if="store.groups.length && store.nodes.some((n) => !n.group)"
-          :class="{ selected: group === '' }"
-          :aria-pressed="group === ''"
-          @click="group = ''"
-        >
-          未分组
-        </button>
-      </div>
+      <GroupTabs />
     </template>
   </PageHeading>
   <div v-if="store.closed" class="empty-state panel" role="alert">
@@ -217,7 +256,8 @@ function clearFilters() {
   <div v-else-if="!store.nodes.length" class="empty-state panel">
     <Server :size="32" />
     <h3>{{ store.error ? '暂时无法获取节点' : '阵容正在等待第一位球员' }}</h3>
-    <p>请在 Monitor Hub 中添加节点，并允许在公开页显示。</p>
+    <p>{{ store.error || '请在 Monitor Hub 中添加节点，并允许在公开页显示。' }}</p>
+    <Button v-if="store.error" variant="outline" @click="store.bootstrap">重试</Button>
   </div>
   <template v-else>
     <section class="network-summary panel" aria-label="网络质量概览">

@@ -136,16 +136,73 @@ describe('network quality page', () => {
     expect(names(wrapper)).toHaveLength(4)
   })
 
+  it('keeps a row loading while its node is here and its probes are not', async () => {
+    const { wrapper } = await mountNetwork('/network', (store) => delete store.quality[4])
+    const row = wrapper.findAll('.network-row').find((r) => r.text().includes('法兰克福 D'))!
+    expect(row.find('.nr-trend .quality-bar').attributes('data-state')).toBe('loading')
+    expect(row.find('.nr-failed').exists()).toBe(false)
+    expect(row.find('.nr-overall').text()).toBe('—')
+    // The rows that have their probes are not held back.
+    expect(wrapper.find('.network-row .nr-trend .quality-bar').attributes('data-state')).toBeUndefined()
+  })
+
+  it('asks for fresh probes every minute on the other windows, past the one-minute cache', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
+    try {
+      const { get } = await mountNetwork('/network?hours=6')
+      get.mockClear()
+      vi.advanceTimersByTime(60000)
+      await flushPromises()
+      expect(own(get)).toEqual([
+        [1, 6, 'ping', true, 0],
+        [2, 6, 'ping', true, 0],
+        [4, 6, 'ping', true, 0],
+      ])
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('forgets the probes it fetched itself when the session is lost', async () => {
+    const { wrapper, store, get } = await mountNetwork('/network?hours=6')
+    expect(wrapper.find('.network-row .nr-overall b').text()).toBe('1195ms')
+    // The nodes come back for the public page; nothing read under the old session is shown meanwhile.
+    get.mockImplementation(() => new Promise(() => {}))
+    store.clearSensitiveState()
+    store.nodes = fixtures()
+    await flushPromises()
+    expect(wrapper.find('.network-row .nr-overall').text()).toBe('—')
+  })
+
+  it('says what went wrong, and offers a retry, when the nodes cannot be read', async () => {
+    let retry!: ReturnType<typeof vi.spyOn>
+    const { wrapper } = await mountNetwork('/network', (s) => {
+      s.nodes = []
+      s.error = '实时连接中断，正在重试'
+      retry = vi.spyOn(s, 'bootstrap').mockResolvedValue()
+    })
+    const empty = wrapper.find('.empty-state')
+    expect(empty.find('h3').text()).toBe('暂时无法获取节点')
+    expect(empty.find('p').text()).toBe('实时连接中断，正在重试')
+    await empty.find('button').trigger('click')
+    expect(retry).toHaveBeenCalled()
+  })
+
   it('filters by group, search and the offline switch', async () => {
     const { wrapper, router } = await mountNetwork()
     await wrapper
       .findAll('.group-tabs button')
       .find((b) => b.text() === '欧洲节点')!
       .trigger('click')
-    expect(names(wrapper)).toEqual(['法兰克福 D'])
-    await router.replace('/network?q=东京')
     await flushPromises()
+    expect(names(wrapper)).toEqual(['法兰克福 D'])
+    // The group is part of the address, beside the search.
+    expect(router.currentRoute.value.query).toEqual({ group: '欧洲节点' })
+    await router.replace('/network?group=欧洲节点&q=东京')
+    await flushPromises()
+    expect(names(wrapper)).toEqual([])
     await wrapper.findAll('.group-tabs button')[0]!.trigger('click')
+    await flushPromises()
     expect(names(wrapper)).toEqual(['东京 B'])
     await router.replace('/network?offline=0')
     await flushPromises()

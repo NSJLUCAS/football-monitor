@@ -435,8 +435,7 @@ onBeforeUnmount(() => {
 
       <aside class="ops-right" aria-label="正在发生">
         <header class="ops-clock">
-          <b>{{ time }}</b
-          ><span>{{ date }}</span>
+          <b>{{ time }}</b><span>{{ date }}</span>
         </header>
         <section class="ops-rail-section ops-rail-grow">
           <h2 class="ops-label">
@@ -484,8 +483,7 @@ onBeforeUnmount(() => {
               title="在地球上查看这台节点"
               @click="visit(c.nodeId)"
             >
-              <time>{{ stamp(c.at) }}</time
-              ><span class="ops-tag" :data-tone="c.tone">{{ c.tag }}</span
+              <time>{{ stamp(c.at) }}</time><span class="ops-tag" :data-tone="c.tone">{{ c.tag }}</span
               ><span class="ops-change-text">{{ c.text }}</span>
             </button>
             <p v-if="!changes.length" class="ops-quiet">最近 1 小时没有新的变化</p>

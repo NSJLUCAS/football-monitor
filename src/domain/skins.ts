@@ -16,6 +16,23 @@ import splash from '../assets/cards/splash.webp'
 import totyOrbit from '../assets/cards/toty-orbit.webp'
 import totyXi from '../assets/cards/toty-xi.webp'
 import weeklyBlack from '../assets/cards/weekly-black.webp'
+import bronzeSmall from '../assets/cards/small/bronze.webp'
+import emeraldSmall from '../assets/cards/small/emerald.webp'
+import galaxySmall from '../assets/cards/small/galaxy.webp'
+import glitchSmall from '../assets/cards/small/glitch.webp'
+import goldSmall from '../assets/cards/small/gold.webp'
+import lapisSmall from '../assets/cards/small/lapis.webp'
+import legendSmall from '../assets/cards/small/legend.webp'
+import neonCitySmall from '../assets/cards/small/neon-city.webp'
+import neonSmall from '../assets/cards/small/neon.webp'
+import pioneerSmall from '../assets/cards/small/pioneer.webp'
+import prismSmall from '../assets/cards/small/prism.webp'
+import shatterSmall from '../assets/cards/small/shatter.webp'
+import silverSmall from '../assets/cards/small/silver.webp'
+import splashSmall from '../assets/cards/small/splash.webp'
+import totyOrbitSmall from '../assets/cards/small/toty-orbit.webp'
+import totyXiSmall from '../assets/cards/small/toty-xi.webp'
+import weeklyBlackSmall from '../assets/cards/small/weekly-black.webp'
 import type { Tier } from './score'
 import type { SkinId, TemplateId, ThemeConfig } from './types'
 
@@ -23,6 +40,8 @@ export interface Skin {
   id: SkinId
   name: string
   image: string
+  /** The same face 400px wide, for card grids and pickers. */
+  small: string
   kind: 'tier' | 'special'
   /** Dark faces get bright grade colours; their line-skill badges follow `badge`. */
   tone: 'light' | 'dark'
@@ -45,6 +64,7 @@ export const skins: Skin[] = [
     id: 'gold',
     name: '金卡',
     image: gold,
+    small: goldSmall,
     tone: 'light',
     kind: 'tier',
     ink: '#3b2a08',
@@ -56,6 +76,7 @@ export const skins: Skin[] = [
     id: 'silver',
     name: '银卡',
     image: silver,
+    small: silverSmall,
     tone: 'light',
     kind: 'tier',
     ink: '#1f2630',
@@ -67,6 +88,7 @@ export const skins: Skin[] = [
     id: 'bronze',
     name: '铜卡',
     image: bronze,
+    small: bronzeSmall,
     tone: 'light',
     kind: 'tier',
     ink: '#2a1408',
@@ -78,6 +100,7 @@ export const skins: Skin[] = [
     id: 'weekly-black',
     name: '周黑',
     image: weeklyBlack,
+    small: weeklyBlackSmall,
     tone: 'dark',
     badge: 'gold',
     kind: 'special',
@@ -91,6 +114,7 @@ export const skins: Skin[] = [
     id: 'pioneer',
     name: '开拓者',
     image: pioneer,
+    small: pioneerSmall,
     tone: 'dark',
     badge: 'pioneer',
     kind: 'special',
@@ -104,6 +128,7 @@ export const skins: Skin[] = [
     id: 'legend',
     name: '传奇',
     image: legend,
+    small: legendSmall,
     tone: 'light',
     kind: 'special',
     ink: '#5a3e0c',
@@ -115,6 +140,7 @@ export const skins: Skin[] = [
     id: 'galaxy',
     name: '星河',
     image: galaxy,
+    small: galaxySmall,
     tone: 'dark',
     badge: 'gold',
     kind: 'special',
@@ -128,6 +154,7 @@ export const skins: Skin[] = [
     id: 'shatter',
     name: '碎焰',
     image: shatter,
+    small: shatterSmall,
     tone: 'dark',
     badge: 'gold',
     kind: 'special',
@@ -141,6 +168,7 @@ export const skins: Skin[] = [
     id: 'toty-xi',
     name: '年度最佳',
     image: totyXi,
+    small: totyXiSmall,
     tone: 'dark',
     badge: 'gold',
     kind: 'special',
@@ -154,6 +182,7 @@ export const skins: Skin[] = [
     id: 'neon',
     name: '霓虹',
     image: neon,
+    small: neonSmall,
     tone: 'dark',
     badge: 'pioneer',
     kind: 'special',
@@ -167,6 +196,7 @@ export const skins: Skin[] = [
     id: 'splash',
     name: '幻彩',
     image: splash,
+    small: splashSmall,
     tone: 'dark',
     badge: 'pioneer',
     kind: 'special',
@@ -180,6 +210,7 @@ export const skins: Skin[] = [
     id: 'lapis',
     name: '青金',
     image: lapis,
+    small: lapisSmall,
     tone: 'dark',
     badge: 'gold',
     kind: 'special',
@@ -193,6 +224,7 @@ export const skins: Skin[] = [
     id: 'neon-city',
     name: '霓虹城',
     image: neonCity,
+    small: neonCitySmall,
     tone: 'dark',
     badge: 'pioneer',
     kind: 'special',
@@ -206,6 +238,7 @@ export const skins: Skin[] = [
     id: 'emerald',
     name: '翡翠',
     image: emerald,
+    small: emeraldSmall,
     tone: 'dark',
     badge: 'green',
     kind: 'special',
@@ -219,6 +252,7 @@ export const skins: Skin[] = [
     id: 'toty-orbit',
     name: '星环',
     image: totyOrbit,
+    small: totyOrbitSmall,
     tone: 'dark',
     badge: 'gold',
     kind: 'special',
@@ -232,6 +266,7 @@ export const skins: Skin[] = [
     id: 'prism',
     name: '棱镜',
     image: prism,
+    small: prismSmall,
     tone: 'dark',
     badge: 'pioneer',
     kind: 'special',
@@ -245,6 +280,7 @@ export const skins: Skin[] = [
     id: 'glitch',
     name: '故障',
     image: glitch,
+    small: glitchSmall,
     tone: 'dark',
     badge: 'green',
     kind: 'special',

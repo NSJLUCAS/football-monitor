@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
-import { carriers, latencyColor } from '../domain/carriers'
+import { carriers, latencyLevel } from '../domain/carriers'
 import { flagUrl } from '../domain/flags'
 import { countryName } from '../domain/format'
 import { LOSS_ALERT, sinceText, type NodeQuality, type Segment } from '../domain/network'
@@ -24,7 +24,8 @@ const cell = (latency: number | null | undefined, loss: number | null | undefine
     : {
         // A line that failed every probe has no latency: a plain dash, not an empty-colour "—ms".
         latency: latency == null ? null : String(Math.round(latency)),
-        color: latency == null ? undefined : latencyColor(latency),
+        // The grade, not a colour: the stylesheet has an ink for it on the light panel and on the dark one.
+        level: latency == null ? undefined : latencyLevel(latency),
         loss: loss == null ? '—' : `${loss.toFixed(1)}%`,
         alert: loss != null && loss >= LOSS_ALERT,
       }
@@ -70,34 +71,34 @@ const trendLabel = computed(() =>
       ><span v-if="failed" class="nr-failed">加载失败</span
       ><QualityBar v-else :segments="segments" :label="trendLabel" :loading="node.online"
     /></span>
+    <!-- The column heads are decoration for the eye; each reading carries its own name for a screen reader. -->
+    <span class="sr-only">综合</span>
     <span class="nr-overall nr-cell" data-label="综合"
       ><template v-if="overall"
-        ><b :style="overall.color ? { color: overall.color } : undefined"
-          >{{ overall.latency ?? '—' }}<em v-if="overall.latency">ms</em></b
+        ><b :data-level="overall.level">{{ overall.latency ?? '—' }}<em v-if="overall.latency">ms</em></b
         ><small :data-alert="overall.alert || undefined">{{ overall.loss }}</small></template
       ><template v-else>—</template></span
     >
     <template v-if="showCarriers">
-      <span
-        v-for="l in lines"
-        :key="l.id"
-        class="nr-carrier nr-cell"
-        :data-carrier="l.id"
-        :data-label="l.short"
-        :title="l.title"
-        ><template v-if="l.reading"
-          ><b :style="l.reading.color ? { color: l.reading.color } : undefined"
-            >{{ l.reading.latency ?? '—' }}<em v-if="l.reading.latency">ms</em></b
-          ><small :data-alert="l.reading.alert || undefined">{{ l.reading.loss }}</small></template
-        ><template v-else>—</template></span
+      <template v-for="l in lines" :key="l.id"
+        ><span class="sr-only">{{ l.short }}</span
+        ><span class="nr-carrier nr-cell" :data-carrier="l.id" :data-label="l.short" :title="l.title"
+          ><template v-if="l.reading"
+            ><b :data-level="l.reading.level"
+              >{{ l.reading.latency ?? '—' }}<em v-if="l.reading.latency">ms</em></b
+            ><small :data-alert="l.reading.alert || undefined">{{ l.reading.loss }}</small></template
+          ><template v-else>—</template></span
+        ></template
       >
     </template>
+    <span class="sr-only">最近丢包</span>
     <span class="nr-last nr-cell" data-label="最近丢包"
       ><template v-if="last"
         ><b>{{ last[0] }}</b
         ><small>{{ last[1] }}</small></template
       ><template v-else>—</template></span
     >
+    <span class="sr-only">抖动</span>
     <span class="nr-jitter nr-cell" data-label="抖动"
       ><template v-if="q?.jitter != null"
         ><b>{{ q.jitter.toFixed(1) }}<em>ms</em></b></template
